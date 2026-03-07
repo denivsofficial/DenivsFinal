@@ -1,4 +1,4 @@
-import Navbar from "./componts/Navbar";
+import Navbar from "./pages/Navbar";
 import AppRoutes from "./routes/AppRoutes";
 
 function App() {

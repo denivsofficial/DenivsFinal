@@ -23,3 +23,6 @@ This project follows a flat, modular approach to ensure speed and ease of collab
 1. **Clone the repository**:
    ```bash
    git clone [https://github.com/Anuragkite/DenivsFrontend.git](https://github.com/Anuragkite/DenivsFrontend.git)
+
+   Important Things : 
+   IN shadcn Library , There's change in Location due to internal location conflict in the shadcn as it is not able to locate the file so it is fixed manually , **Future Import From Shadcn Must Do It Manually In shadcn Components**--7 jan,26

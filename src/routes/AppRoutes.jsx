@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
-import Home from '../componts/Home';
+import Home from '../pages/Home';
 // import PostProperty from '../pages/PostProperty';
 
 const AppRoutes = () => {
