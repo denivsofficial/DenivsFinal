@@ -1,0 +1,1 @@
+export const HomepageBannerURL = "https://imgs.search.brave.com/pfBxD-bq714DgW-ehDE9v41onQoVm4R1EwoN4z9eROg/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9zdGF0/aWMudmVjdGVlenku/Y29tL3N5c3RlbS9y/ZXNvdXJjZXMvdGh1/bWJuYWlscy8wMzYv/NzI1LzIzMy9zbWFs/bC9haS1nZW5lcmF0/ZWQtcmVhbC1lc3Rh/dGUtYWR2ZXJ0aXNt/ZW50LWJhY2tncm91/bmQtd2l0aC1jb3B5/LXNwYWNlLWZyZWUt/cGhvdG8uanBn";
