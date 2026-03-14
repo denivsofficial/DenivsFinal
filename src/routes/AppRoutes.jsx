@@ -6,8 +6,8 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      {/* <Route path="/post-property" element={<PostProperty />} /> */}
       
+      {/* <Route path="/post-property" element={<PostProperty />} /> */}
       {/* Easy to add more later */}
       {/* <Route path="/search" element={<SearchPage />} /> */}
     </Routes>
