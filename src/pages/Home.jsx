@@ -1,7 +1,7 @@
 import React from 'react';
-import ExploreCategories from './ExploreCategories';
-import Footer from './Footer';
-import Hero from './Hero';
+import ExploreCategories from '../ComponentPages/ExploreCategories';
+import Footer from '../ComponentPages/Footer';
+import Hero from '../ComponentPages/Hero';
 
 
 
