@@ -12,12 +12,14 @@ const Home = () => {
   return (
     <main className="w-full min-h-screen bg-white">
     <Hero/>
-         <div className="max-w-7xl mx-auto px-4 py-12 space-y-20">
-        <FeaturedList/>
+
+        <div className="mt-[clamp(10px,8vw,90px)]">
+          <FeaturedList/>
+        </div>
         <Calculator/>
         <MoreProperty/>
 
-      </div>
+      
       <Footer />
     </main>
   );
