@@ -54,7 +54,7 @@ const Hero = () => {
 
           {/* ── 2. Category Filters (NEW) ── */}
           {/* Using flex-nowrap with overflow-x-auto for a mobile-friendly scroll */}
-          <div className='mt-4 flex items-center gap-5 overflow-x-auto no-scrollbar'>
+          <div className='mt-4 flex items-center justify-between gap-5 overflow-x-auto no-scrollbar'>
             <div className='flex flex-col items-center gap-2 group cursor-pointer min-w-[80px]'>
               <div className= ' w-5 items-center bg-blue-50  rounded-xl group-hover:bg-blue-100 transition shadow-sm'>
                 <HomeIcon className='w-6 h-6 text-blue-950' />

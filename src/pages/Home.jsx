@@ -5,6 +5,7 @@ import Hero from '../ComponentPages/Hero';
 import FeaturedList from '@/ComponentPages/FeaturedList';
 import { Calculator } from 'lucide-react';
 import MoreProperty from '@/ComponentPages/MoreProperty';
+import Calculators from '@/ComponentPages/Calculator';
 
 
 
@@ -16,7 +17,7 @@ const Home = () => {
         <div className="mt-[clamp(10px,8vw,90px)]">
           <FeaturedList/>
         </div>
-        <Calculator/>
+        <Calculators/>
         <MoreProperty/>
 
       
