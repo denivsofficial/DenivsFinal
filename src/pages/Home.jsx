@@ -2,7 +2,7 @@ import React from 'react';
 import ExploreCategories from '../ComponentPages/ExploreCategories';
 import Footer from '../ComponentPages/Footer';
 import Hero from '../ComponentPages/Hero';
-import PostPropertyBanner from '../ComponentPages/PostProperty';
+import PostPropertyBanner from '../ComponentPages/PostPropertyBanner';
 
 import FeaturedList from '@/ComponentPages/FeaturedList';
 import { Calculator } from 'lucide-react';
@@ -24,7 +24,7 @@ const Home = () => {
         <MoreProperty/>
       
       
-      <Footer />
+      
     </main>
   );
 };
