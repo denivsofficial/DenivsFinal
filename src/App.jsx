@@ -2,12 +2,11 @@ import { useEffect } from "react";
 import Footer from "./ComponentPages/Footer";
 import Navbar from "./pages/Navbar";
 import AppRoutes from "./routes/AppRoutes";
-import useAuthStore from "./store/useAuthStore"; // Import the store
+import useAuthStore from "./store/useAuthStore"; 
 
 function App() {
   const checkAuthSession = useAuthStore((state) => state.checkAuthSession);
 
-  // Run this exactly once when the app loads to check for existing cookies
   useEffect(() => {
     checkAuthSession();
   }, [checkAuthSession]);

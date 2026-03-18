@@ -4,6 +4,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Building, Home, MapPin, Briefcase, Store, UploadCloud, ChevronLeft, ChevronRight, CheckCircle2, X } from 'lucide-react';
+// 🚀 ADDED: Import your store and apiClient
+import useAuthStore, { apiClient } from '../store/useAuthStore';
 
 // --- 1. THE ZOD VALIDATION SCHEMA ---
 const propertySchema = z.object({
@@ -19,8 +21,15 @@ const propertySchema = z.object({
 
 const PostProperty = () => {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user); // Grab user for Step 1 payload
+  
   const [step, setStep] = useState(1);
   const [previewImages, setPreviewImages] = useState([]);
+  // 🚀 ADDED: State to hold the draft ID and loading status
+  const [propertyId, setPropertyId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [globalError, setGlobalError] = useState(null);
+  
   const totalSteps = 4;
 
   // --- IMAGE UPLOAD HANDLERS ---
@@ -47,8 +56,9 @@ const PostProperty = () => {
 
   const selectedType = watch('propertyType');
 
-  // --- STEP NAVIGATION & VALIDATION ---
+  // --- STEP NAVIGATION & API LOGIC ---
   const handleNext = async () => {
+    setGlobalError(null);
     let fieldsToValidate = [];
     if (step === 1) fieldsToValidate = ['propertyType'];
     if (step === 2) fieldsToValidate = ['city', 'locality'];
@@ -56,22 +66,99 @@ const PostProperty = () => {
     if (step === 4) fieldsToValidate = ['price'];
 
     const isStepValid = await trigger(fieldsToValidate);
+    
     if (isStepValid) {
-      setStep((prev) => prev + 1);
+      // 🚀 HIT 1: Create the Draft when leaving Step 1
+      if (step === 1) {
+        setIsSubmitting(true);
+        try {
+          const response = await apiClient.post('/api/properties', {
+            propertyType: selectedType,
+            transactionType: "Sale", // Hardcoded per your backend docs
+            contactNumber: user?.contactNumber || "0000000000", // Fallback if missing
+            sellerType: user?.sellerType || "Owner"
+          });
+          
+          if (response.data.success) {
+            setPropertyId(response.data.data._id); // Save the new ID!
+            setStep(2);
+          }
+        } catch (error) {
+          setGlobalError(error.response?.data?.message || "Failed to create draft.");
+        } finally {
+          setIsSubmitting(false);
+        }
+      } else {
+        // Just move to the next UI step for 2 & 3
+        setStep((prev) => prev + 1);
+      }
     }
   };
 
   const handleBack = () => {
+    setGlobalError(null);
     setStep((prev) => prev - 1);
   };
 
-  const onSubmit = (data) => {
-    // We will attach the previewImages to the backend request later
-    console.log("Form Data Ready for Backend:", data);
-    console.log("Images to upload:", previewImages);
-    setStep(5); 
-  };
 
+// 🚀 HIT 2: Submit the rest of the data and images
+  const onSubmit = async (data) => {
+    setGlobalError(null);
+    setIsSubmitting(true);
+    
+    try {
+      const submitData = new FormData();
+      
+      // 1. Package the Location Object (Backend expects a JSON string)
+      const locationObj = {
+        city: data.city,
+        address: data.locality, // Mapping locality to address
+        // You can add state/pincode later if you add them to your form
+      };
+      submitData.append('location', JSON.stringify(locationObj));
+
+      // 2. Package the Residential Details Object
+      const residentialDetailsObj = {
+        bedrooms: parseInt(data.bedrooms), // Extract number from "2 BHK"
+        carpetArea: parseInt(data.carpetArea),
+        floorNumber: parseInt(data.floor)
+      };
+      submitData.append('residentialDetails', JSON.stringify(residentialDetailsObj));
+
+      // 3. Package the Price Object
+      const priceObj = {
+        value: parseInt(data.price),
+        currency: "INR",
+        isNegotiable: false
+      };
+      submitData.append('price', JSON.stringify(priceObj));
+
+      // 4. Add the flat text fields
+      if (data.project) submitData.append('title', data.project);
+      
+      // 5. CRITICAL: Tell the backend the form is finished!
+      submitData.append('formStep', '4');
+      submitData.append('formStatus', 'published'); // This makes it visible in the feed
+
+      // 6. Append all image files
+      previewImages.forEach((img) => {
+        submitData.append('images', img.file);
+      });
+
+      // Send the PUT request using the propertyId we got from Step 1
+      const response = await apiClient.put(`/api/properties/${propertyId}`, submitData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (response.data.success) {
+        setStep(5); // Show success screen!
+      }
+    } catch (error) {
+      setGlobalError(error.response?.data?.message || "Failed to upload property details.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   // --- UI RENDERER ---
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex items-center justify-center p-4">
@@ -90,6 +177,13 @@ const PostProperty = () => {
           </div>
         )}
 
+        {/* Global Error Banner */}
+        {globalError && (
+            <div className="mx-6 mt-4 p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200 text-center font-medium">
+                {globalError}
+            </div>
+        )}
+
         {/* Dynamic Body */}
         <div className="p-6 flex-grow flex flex-col">
           
@@ -100,11 +194,11 @@ const PostProperty = () => {
               <p className="text-sm text-slate-500 text-center mb-6">What type of property are you selling?</p>
               <div className="space-y-3">
                 {[
-                  { id: 'apartment', label: 'Apartment', icon: Building },
-                  { id: 'house', label: 'House', icon: Home },
-                  { id: 'land', label: 'Land / Plot', icon: MapPin },
-                  { id: 'office', label: 'Office', icon: Briefcase },
-                  { id: 'shop', label: 'Shop', icon: Store },
+                  { id: 'Apartment', label: 'Apartment', icon: Building },
+                  { id: 'House', label: 'House', icon: Home },
+                  { id: 'Land', label: 'Land / Plot', icon: MapPin },
+                  { id: 'Office', label: 'Office', icon: Briefcase },
+                  { id: 'Shop', label: 'Shop', icon: Store },
                 ].map((type) => (
                   <button
                     key={type.id}
@@ -165,7 +259,6 @@ const PostProperty = () => {
                 {errors.bedrooms && <p className="text-red-500 text-xs mt-1">{errors.bedrooms.message}</p>}
               </div>
 
-              {/* UPDATED: Carpet Area with fixed "sq.ft." on the right */}
               <div>
                 <label className="text-sm font-semibold text-slate-600">Carpet Area</label>
                 <div className="relative mt-1">
@@ -188,7 +281,8 @@ const PostProperty = () => {
               </div>
             </div>
           )}
-          {/* STEP 4 (Correctly Placed Body) */}
+          
+          {/* STEP 4 */}
           {step === 4 && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-5">
               <h2 className="text-xl font-bold mb-6">Set your price & photos</h2>
@@ -257,11 +351,15 @@ const PostProperty = () => {
           )}
         </div>
 
-        {/* Footer Navigation Buttons (Correctly Restored) */}
+        {/* Footer Navigation Buttons */}
         <div className="border-t border-slate-100 p-6">
           {step === 1 && (
-             <button onClick={handleNext} className="w-full h-12 bg-[#001A33] text-white rounded-lg font-bold hover:bg-[#13304c] transition flex justify-center items-center gap-2">
-               Continue <ChevronRight size={18} />
+             <button 
+               onClick={handleNext} 
+               disabled={isSubmitting}
+               className="w-full h-12 bg-[#001A33] text-white rounded-lg font-bold hover:bg-[#13304c] transition flex justify-center items-center gap-2 disabled:opacity-50"
+             >
+               {isSubmitting ? 'Saving Draft...' : 'Continue'} {!isSubmitting && <ChevronRight size={18} />}
              </button>
           )}
 
@@ -278,12 +376,11 @@ const PostProperty = () => {
 
           {step === 4 && (
              <div className="flex justify-between gap-4">
-              <button onClick={handleBack} className="w-1/3 h-12 bg-white border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50 transition flex justify-center items-center gap-1">
+              <button disabled={isSubmitting} onClick={handleBack} className="w-1/3 h-12 bg-white border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50 transition flex justify-center items-center gap-1 disabled:opacity-50">
                 <ChevronLeft size={18} /> Back
               </button>
-              {/* This is the final submit button! */}
-              <button onClick={handleSubmit(onSubmit)} className="w-2/3 h-12 bg-[#001A33] text-white rounded-lg font-bold hover:bg-[#13304c] transition flex justify-center items-center">
-                Post Property
+              <button disabled={isSubmitting} onClick={handleSubmit(onSubmit)} className="w-2/3 h-12 bg-[#001A33] text-white rounded-lg font-bold hover:bg-[#13304c] transition flex justify-center items-center disabled:opacity-50">
+                {isSubmitting ? 'Uploading...' : 'Post Property'}
               </button>
             </div>
           )}

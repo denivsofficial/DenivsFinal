@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Bed, Bath, Maximize, Heart } from 'lucide-react';
 import usePropertyStore from '../store/usePropertyStore'; // Adjust path if necessary
 
@@ -6,6 +6,13 @@ const FeaturedList = () => {
   // 1. Grab data and loading state from the Zustand store
   const properties = usePropertyStore((state) => state.featuredProperties);
   const isLoading = usePropertyStore((state) => state.isLoading);
+
+
+  const fetchProperties = usePropertyStore((state) => state.fetchProperties);
+
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
 
   // Array to map over for our skeleton loading cards
   const skeletonCards = [1, 2, 3, 4];
@@ -24,8 +31,7 @@ const FeaturedList = () => {
         <div className="flex overflow-x-auto gap-6 pb-10 no-scrollbar snap-x snap-mandatory scroll-smooth">
           
           {isLoading ? (
-            /* --- SKELETON SHIMMER UI --- */
-            skeletonCards.map((n) => (
+            /* --- SKELETON SHIMMER UI --- */            skeletonCards.map((n) => (
               <div 
                 key={`skeleton-${n}`} 
                 className="min-w-[85vw] sm:min-w-[300px] md:min-w-[350px] max-w-[350px] snap-center bg-white rounded-3xl shadow-md border border-slate-100 overflow-hidden"
