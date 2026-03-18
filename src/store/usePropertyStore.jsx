@@ -62,24 +62,30 @@ const fallbackDummyData = [
 // CRITICAL: Added `get` to the parameters so we can read current state inside actions
 const usePropertyStore = create((set, get) => ({
   // 1. State
-  isLoading: false, 
+  isLoading: false,
   error: null,
   featuredProperties: fallbackDummyData, // Start with dummy data initially
   likedPropertyIds: [], // Stores IDs of properties the user has liked
-
+  likedPropertiesData: [],
   // 2. Actions
   setLoading: (status) => set({ isLoading: status }),
   setFeaturedProperties: (propertiesFromBackend) => set({ featuredProperties: propertiesFromBackend }),
 
-  // 3. Fetch Properties (Feed)
-  fetchProperties: async () => {
+  // 3. Fetch Properties (Feed with Search Filters!)
+  fetchProperties: async (filters = {}) => {
     set({ isLoading: true, error: null });
-    
+
     try {
-      const response = await apiClient.get('/api/properties/feed');
-      
+      // Build the query string dynamically based on what the user searched
+      const queryParams = new URLSearchParams();
+      if (filters.search) queryParams.append('search', filters.search);
+      if (filters.propertyType) queryParams.append('propertyType', filters.propertyType);
+
+      // Hit the backend feed with the new search queries
+      const response = await apiClient.get(`/api/properties/feed?${queryParams.toString()}`);
+
       const propertiesArray = response.data?.data?.properties || [];
-      
+
       if (response.data.success && propertiesArray.length > 0) {
         const formattedProperties = propertiesArray.map(prop => ({
           id: prop._id,
@@ -87,9 +93,50 @@ const usePropertyStore = create((set, get) => ({
           location: `${prop.location?.address || prop.locality || ''}, ${prop.location?.city || prop.city || ''}`,
           price: prop.price?.value?.toString() || prop.price?.toString() || 'Price on Request',
           tags: [
-            prop.transactionType?.toUpperCase() || "SALE", 
+            prop.transactionType?.toUpperCase() || "SALE",
             prop.propertyType?.toUpperCase() || "PROPERTY"
           ],
+          specs: {
+            bed: prop.residentialDetails?.bedrooms || parseInt(prop.bedrooms) || 0,
+            bath: prop.residentialDetails?.bathrooms || 2,
+            area: prop.residentialDetails?.carpetArea ? `${prop.residentialDetails.carpetArea} sqft` : 'N/A'
+          },
+          image: prop.images && prop.images.length > 0
+            ? prop.images[0]
+            : "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800"
+        }));
+
+        set({ featuredProperties: formattedProperties, isLoading: false });
+      } else {
+        // If search returns no results, empty the list so the UI knows nothing was found
+        set({ featuredProperties: [], isLoading: false });
+      }
+    } catch (error) {
+      console.error("Backend fetch failed, loading dummy data:", error.message);
+      set({ featuredProperties: fallbackDummyData, isLoading: false, error: error.message });
+    }
+  },
+  // 4. Fetch the User's Favorites
+  fetchFavorites: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await apiClient.get('/api/favorites');
+      if (response.data && response.data.favorites) {
+        
+        const ids = response.data.favorites.map(fav => fav.propertyId?._id || fav.propertyId);
+        
+        // Extract the full populated property objects
+        const fullProperties = response.data.favorites
+          .map(fav => fav.propertyId)
+          .filter(Boolean); // Filter out any nulls
+
+        // Map them exactly like we do in fetchProperties
+        const formattedLiked = fullProperties.map(prop => ({
+          id: prop._id,
+          title: prop.title || prop.project || `${prop.propertyType} for ${prop.transactionType}`,
+          location: `${prop.location?.address || prop.locality || ''}, ${prop.location?.city || prop.city || ''}`,
+          price: prop.price?.value?.toString() || prop.price?.toString() || 'Price on Request',
+          tags: [prop.transactionType?.toUpperCase() || "SALE", prop.propertyType?.toUpperCase() || "PROPERTY"],
           specs: { 
             bed: prop.residentialDetails?.bedrooms || parseInt(prop.bedrooms) || 0, 
             bath: prop.residentialDetails?.bathrooms || 2, 
@@ -100,28 +147,11 @@ const usePropertyStore = create((set, get) => ({
             : "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800"
         }));
 
-        set({ featuredProperties: formattedProperties, isLoading: false });
-      } else {
-        console.warn("No properties found in database, using fallback data.");
-        set({ featuredProperties: fallbackDummyData, isLoading: false });
-      }
-    } catch (error) {
-      console.error("Backend fetch failed, loading dummy data:", error.message);
-      set({ featuredProperties: fallbackDummyData, isLoading: false, error: error.message });
-    }
-  },
-
-  // 4. Fetch the User's Favorites
-  fetchFavorites: async () => {
-    try {
-      const response = await apiClient.get('/api/favorites');
-      if (response.data && response.data.favorites) {
-        // Extract just the property IDs from the backend response
-        const ids = response.data.favorites.map(fav => fav.propertyId?._id || fav.propertyId);
-        set({ likedPropertyIds: ids });
+        set({ likedPropertyIds: ids, likedPropertiesData: formattedLiked, isLoading: false });
       }
     } catch (error) {
       console.error("Failed to fetch favorites", error);
+      set({ isLoading: false });
     }
   },
 
@@ -148,7 +178,7 @@ const usePropertyStore = create((set, get) => ({
     } catch (error) {
       // If the backend request fails, rollback the UI to its previous state
       console.error("Failed to update favorite", error);
-      set({ likedPropertyIds }); 
+      set({ likedPropertyIds });
     }
   }
 }));

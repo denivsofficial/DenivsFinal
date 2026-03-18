@@ -8,6 +8,7 @@ import FeaturedList from '@/ComponentPages/FeaturedList';
 import { Calculator } from 'lucide-react';
 import MoreProperty from '@/ComponentPages/MoreProperty';
 import Calculators from '@/ComponentPages/Calculator';
+import BrowseByCategory from '@/ComponentPages/BrowseByCategory';
 
 
 
@@ -20,8 +21,9 @@ const Home = () => {
           <FeaturedList/>
         </div>
         <Calculators/>
+        <BrowseByCategory/>
         <PostPropertyBanner/>
-        <MoreProperty/>
+        
       
       
       
