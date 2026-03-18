@@ -59,31 +59,28 @@ const fallbackDummyData = [
   }
 ];
 
-const usePropertyStore = create((set) => ({
+// CRITICAL: Added `get` to the parameters so we can read current state inside actions
+const usePropertyStore = create((set, get) => ({
   // 1. State
   isLoading: false, 
   error: null,
   featuredProperties: fallbackDummyData, // Start with dummy data initially
+  likedPropertyIds: [], // Stores IDs of properties the user has liked
 
   // 2. Actions
   setLoading: (status) => set({ isLoading: status }),
   setFeaturedProperties: (propertiesFromBackend) => set({ featuredProperties: propertiesFromBackend }),
 
-
- // 3. The Fetch Action (The Magic)
+  // 3. Fetch Properties (Feed)
   fetchProperties: async () => {
     set({ isLoading: true, error: null });
     
     try {
-      // Try to hit the backend feed
       const response = await apiClient.get('/api/properties/feed');
       
-      // CRITICAL FIX: The backend sends data inside response.data.data.properties
       const propertiesArray = response.data?.data?.properties || [];
       
       if (response.data.success && propertiesArray.length > 0) {
-        
-        // Map backend data to match your UI's exact format
         const formattedProperties = propertiesArray.map(prop => ({
           id: prop._id,
           title: prop.title || prop.project || `${prop.propertyType} for ${prop.transactionType}`,
@@ -98,13 +95,11 @@ const usePropertyStore = create((set) => ({
             bath: prop.residentialDetails?.bathrooms || 2, 
             area: prop.residentialDetails?.carpetArea ? `${prop.residentialDetails.carpetArea} sqft` : 'N/A' 
           },
-          // Use the first uploaded image, OR fallback to a default building image
           image: prop.images && prop.images.length > 0 
             ? prop.images[0] 
             : "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800"
         }));
 
-        // Update the store with the REAL data!
         set({ featuredProperties: formattedProperties, isLoading: false });
       } else {
         console.warn("No properties found in database, using fallback data.");
@@ -113,6 +108,47 @@ const usePropertyStore = create((set) => ({
     } catch (error) {
       console.error("Backend fetch failed, loading dummy data:", error.message);
       set({ featuredProperties: fallbackDummyData, isLoading: false, error: error.message });
+    }
+  },
+
+  // 4. Fetch the User's Favorites
+  fetchFavorites: async () => {
+    try {
+      const response = await apiClient.get('/api/favorites');
+      if (response.data && response.data.favorites) {
+        // Extract just the property IDs from the backend response
+        const ids = response.data.favorites.map(fav => fav.propertyId?._id || fav.propertyId);
+        set({ likedPropertyIds: ids });
+      }
+    } catch (error) {
+      console.error("Failed to fetch favorites", error);
+    }
+  },
+
+  // 5. Toggle Favorite (Optimistic UI Update)
+  toggleFavorite: async (propertyId) => {
+    // Read the current state
+    const { likedPropertyIds } = get();
+    const isLiked = likedPropertyIds.includes(propertyId);
+
+    // Optimistic Update: Instantly update the UI before the API finishes!
+    if (isLiked) {
+      set({ likedPropertyIds: likedPropertyIds.filter(id => id !== propertyId) });
+    } else {
+      set({ likedPropertyIds: [...likedPropertyIds, propertyId] });
+    }
+
+    // Silently ping the backend
+    try {
+      if (isLiked) {
+        await apiClient.delete(`/api/favorites/${propertyId}`);
+      } else {
+        await apiClient.post(`/api/favorites/${propertyId}`);
+      }
+    } catch (error) {
+      // If the backend request fails, rollback the UI to its previous state
+      console.error("Failed to update favorite", error);
+      set({ likedPropertyIds }); 
     }
   }
 }));

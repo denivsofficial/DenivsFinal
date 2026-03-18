@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Bed, Bath, Maximize, Heart } from 'lucide-react';
 import usePropertyStore from '../store/usePropertyStore'; // Adjust path if necessary
-
+import { Link } from 'react-router-dom';
 const FeaturedList = () => {
   // 1. Grab data and loading state from the Zustand store
   const properties = usePropertyStore((state) => state.featuredProperties);
@@ -95,9 +95,11 @@ const FeaturedList = () => {
 
                   {/* Hover Overlay */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 backdrop-blur-[2px]">
-                      <button className="bg-blue-950 text-white px-6 py-2 rounded-full font-bold text-sm shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                      <Link
+                      to={`/property/${item.id}`}
+                      className="bg-blue-950 text-white px-6 py-2 rounded-full font-bold text-sm shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                           View Property
-                      </button>
+                      </Link>
                   </div>
                 </div>
 

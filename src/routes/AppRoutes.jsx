@@ -6,6 +6,7 @@ import Signup from '../pages/Signup';
 import Login from '../pages/Login';
 import PostProperty from '../pages/postProperty';
 import ProfileSettingsPage from "../pages/ProfileSettingsPage";
+import PropertyDisplayPage from '../pages/PropertyDisplayPage';
 // import PostProperty from '../pages/PostProperty'; // Uncomment when you build the form page
 
 // --- ROUTE GUARDS ---
@@ -23,6 +24,7 @@ const AppRoutes = () => {
       {/* 🔴 PROTECTED ROUTES (Requires User to be Logged In) */}
       <Route path="/post-property" element={<PostProperty />} />
       <Route path="/profile/settings" element={<ProfileSettingsPage />} />
+      <Route path="/property/:id" element={<PropertyDisplayPage />} />
       {/* <Route element={<ProtectedRoutes />}>
         <Route path="/post-property" element={<PostProperty />} />
         <Route path="/favorites" element={<FavoritesDashboard />} />
