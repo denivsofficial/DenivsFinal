@@ -26,12 +26,14 @@ const Navbar = () => {
         <nav className='bg-white/90 backdrop-blur-md shadow-sm fixed top-0 left-0 right-0 z-50 border-b border-gray-100'>
             <div className='flex items-center justify-between px-6 py-3'>
                 
-                {/* 1. Logo Section */}
-                <div onClick={() => { navigate('/'); closeMenu(); }} className='flex items-center gap-2 cursor-pointer z-50'>
-                    <div className='bg-[#001A33] p-1.5 rounded-lg'>
-                        <div className='w-4 h-4 border-2 border-white rounded-sm'></div>
-                    </div>
-                    <span className='font-bold text-xl tracking-tight text-slate-800'>DENIVS</span>
+                {/* 1. Logo Section - Updated to Text Only with Times New Roman */}
+                <div onClick={() => { navigate('/'); closeMenu(); }} className='flex items-center cursor-pointer z-50'>
+                    <span 
+                        className='font-bold text-xl tracking-tight text-slate-800'
+                        style={{ fontFamily: '"Times New Roman", Times, serif' }}
+                    >
+                        DENIVS
+                    </span>
                 </div>
 
                 {/* 2. Desktop Auth & Action Section (Right Side) */}
