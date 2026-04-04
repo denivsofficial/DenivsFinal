@@ -42,16 +42,33 @@ const usePropertyStore = create((set, get) => ({
       if (response.data.success && propertiesArray.length > 0) {
         const formattedProperties = propertiesArray.map(prop => ({
           id: prop._id,
+          _id: prop._id,
+
           title: prop.title || prop.project || `${prop.propertyType} for ${prop.transactionType}`,
+
           location: `${prop.location?.address || prop.locality || ''}, ${prop.location?.city || prop.city || ''}`,
+
           price: prop.price?.value?.toString() || prop.price?.toString() || 'Price on Request',
-          tags: [prop.transactionType?.toUpperCase() || "SALE", prop.propertyType?.toUpperCase() || "PROPERTY"],
+
+          tags: [
+            prop.transactionType?.toUpperCase() || "SALE",
+            prop.propertyType?.toUpperCase() || "PROPERTY"
+          ],
+
           specs: {
             bed: prop.residentialDetails?.bedrooms || parseInt(prop.bedrooms) || 0,
             bath: prop.residentialDetails?.bathrooms || 2,
-            area: prop.residentialDetails?.carpetArea ? `${prop.residentialDetails.carpetArea} sqft` : 'N/A'
+            area: prop.residentialDetails?.carpetArea
+              ? `${prop.residentialDetails.carpetArea} sqft`
+              : 'N/A'
           },
-          image: prop.images && prop.images.length > 0 ? prop.images[0] : "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800"
+
+          image:
+            prop.images && prop.images.length > 0
+              ? prop.images[0]
+              : "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800",
+
+          featuredRank: prop.featuredRank ?? 0
         }));
 
         set({ featuredProperties: formattedProperties, isLoading: false });
