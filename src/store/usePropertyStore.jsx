@@ -36,23 +36,46 @@ const usePropertyStore = create((set, get) => ({
       }
 
       const response = await apiClient.get(`/api/properties/feed?${queryParams.toString()}`);
-      const propertiesArray = response.data?.data?.properties || [];
+
+      const propertiesArray = Array.isArray(response.data?.data?.properties)
+        ? response.data.data.properties
+        : Array.isArray(response.data?.data)
+        ? response.data.data
+        : Array.isArray(response.data?.properties)
+        ? response.data.properties
+        : [];
 
       if (response.data.success && propertiesArray.length > 0) {
-        const formattedProperties = propertiesArray.map(prop => ({
-          id: prop._id,
-          _id: prop._id,
+        const formattedProperties = propertiesArray.map(prop => {
+          // location is a nested object: { address, city, state, ... }
+          const city = prop.location?.city || '';
+          const address = prop.location?.address || prop.location?.locality || '';
+          const locationStr = [address, city].filter(Boolean).join(', ');
 
-          title: prop.title || prop.project || `${prop.propertyType} for ${prop.transactionType}`,
+          // price is a nested object: { value, currency, ... }
+          const priceValue = prop.price?.value ?? prop.price?.amount ?? prop.price;
+          const priceStr = priceValue ? Number(priceValue).toLocaleString('en-IN') : 'Price on Request';
 
-          location: `${prop.location?.address || prop.locality || ''}, ${prop.location?.city || prop.city || ''}`,
+          // beds/baths/area live inside residentialDetails or plotDetails
+          const rd = prop.residentialDetails || {};
+          const pd = prop.plotDetails || {};
 
-          price: prop.price?.value?.toString() || prop.price?.toString() || 'Price on Request',
-
-          image: prop.images?.[0] || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800",
-
-          featuredRank: prop.featuredRank ?? 0
-        }));
+          return {
+            id: prop._id,
+            _id: prop._id,
+            title: prop.title || `${prop.propertyType} for ${prop.transactionType}`,
+            location: locationStr,
+            price: priceStr,
+            image: prop.images?.[0] || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800",
+            tags: [prop.transactionType, prop.propertyType].filter(Boolean),
+            specs: {
+              bed: rd.bedrooms ?? rd.bhk ?? null,
+              bath: rd.bathrooms ?? null,
+              area: rd.builtUpArea || rd.carpetArea || pd.plotArea || null,
+            },
+            featuredRank: prop.featuredRank ?? 0,
+          };
+        });
 
         set({ featuredProperties: formattedProperties, isLoading: false });
       } else {
