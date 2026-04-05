@@ -128,7 +128,7 @@ const FeaturedList = () => {
                     </p>
 
                     <p className="font-bold mt-2">
-                      ₹ {Number(item.price).toLocaleString("en-IN")}
+                      ₹ {item.price}
                     </p>
                   </div>
                 </div>
