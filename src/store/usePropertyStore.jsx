@@ -6,6 +6,35 @@ const fallbackDummyData = [
   { id: 2, title: "Gajanan Residency", location: "Aurangpura, Sambhajinagar", price: "45,00,000", tags: ["RENT", "HOUSE"], specs: { bed: 4, bath: 2, area: "120 m²" }, image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800" },
 ];
 
+// Reusable formatter — used in both fetchProperties and fetchFavorites
+const formatProperty = (prop) => {
+  const city = prop.location?.city || '';
+  const address = prop.location?.address || prop.location?.locality || '';
+  const locationStr = [address, city].filter(Boolean).join(', ');
+
+  const priceValue = prop.price?.value ?? prop.price?.amount ?? prop.price;
+  const priceStr = priceValue ? Number(priceValue).toLocaleString('en-IN') : 'Price on Request';
+
+  const rd = prop.residentialDetails || {};
+  const pd = prop.plotDetails || {};
+
+  return {
+    id: String(prop._id),
+    _id: String(prop._id),
+    title: prop.title || `${prop.propertyType} for ${prop.transactionType}`,
+    location: locationStr,
+    price: priceStr,
+    image: prop.images?.[0] || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800",
+    tags: [prop.transactionType, prop.propertyType].filter(Boolean),
+    specs: {
+      bed: rd.bedrooms ?? rd.bhk ?? null,
+      bath: rd.bathrooms ?? null,
+      area: rd.builtUpArea || rd.carpetArea || pd.plotArea || null,
+    },
+    featuredRank: prop.featuredRank ?? 0,
+  };
+};
+
 const usePropertyStore = create((set, get) => ({
 
   isLoading: false,
@@ -46,38 +75,7 @@ const usePropertyStore = create((set, get) => ({
         : [];
 
       if (response.data.success && propertiesArray.length > 0) {
-        const formattedProperties = propertiesArray.map(prop => {
-          // location is a nested object: { address, city, state, ... }
-          const city = prop.location?.city || '';
-          const address = prop.location?.address || prop.location?.locality || '';
-          const locationStr = [address, city].filter(Boolean).join(', ');
-
-          // price is a nested object: { value, currency, ... }
-          const priceValue = prop.price?.value ?? prop.price?.amount ?? prop.price;
-          const priceStr = priceValue ? Number(priceValue).toLocaleString('en-IN') : 'Price on Request';
-
-          // beds/baths/area live inside residentialDetails or plotDetails
-          const rd = prop.residentialDetails || {};
-          const pd = prop.plotDetails || {};
-
-          return {
-            id: prop._id,
-            _id: prop._id,
-            title: prop.title || `${prop.propertyType} for ${prop.transactionType}`,
-            location: locationStr,
-            price: priceStr,
-            image: prop.images?.[0] || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800",
-            tags: [prop.transactionType, prop.propertyType].filter(Boolean),
-            specs: {
-              bed: rd.bedrooms ?? rd.bhk ?? null,
-              bath: rd.bathrooms ?? null,
-              area: rd.builtUpArea || rd.carpetArea || pd.plotArea || null,
-            },
-            featuredRank: prop.featuredRank ?? 0,
-          };
-        });
-
-        set({ featuredProperties: formattedProperties, isLoading: false });
+        set({ featuredProperties: propertiesArray.map(formatProperty), isLoading: false });
       } else {
         set({ featuredProperties: [], isLoading: false });
       }
@@ -98,9 +96,25 @@ const usePropertyStore = create((set, get) => ({
       const response = await apiClient.get('/api/favorites');
 
       if (response.data?.favorites) {
-        const ids = response.data.favorites.map(fav => fav.propertyId?._id || fav.propertyId);
+        const favorites = response.data.favorites;
 
-        set({ likedPropertyIds: ids, isLoading: false });
+        // Extract IDs (normalized to strings)
+        const ids = favorites.map(fav =>
+          String(fav.propertyId?._id || fav.propertyId)
+        );
+
+        // Extract full property data if the backend populates propertyId
+        const propertiesData = favorites
+          .filter(fav => fav.propertyId && typeof fav.propertyId === 'object')
+          .map(fav => formatProperty(fav.propertyId));
+
+        set({
+          likedPropertyIds: ids,
+          likedPropertiesData: propertiesData,
+          isLoading: false
+        });
+      } else {
+        set({ isLoading: false });
       }
     } catch {
       set({ isLoading: false });
@@ -108,23 +122,36 @@ const usePropertyStore = create((set, get) => ({
   },
 
   toggleFavorite: async (propertyId) => {
-    const { likedPropertyIds } = get();
-    const isLiked = likedPropertyIds.includes(propertyId);
+    const id = String(propertyId);
+    const { likedPropertyIds, likedPropertiesData, featuredProperties } = get();
+    const isLiked = likedPropertyIds.includes(id);
 
-    set({
-      likedPropertyIds: isLiked
-        ? likedPropertyIds.filter(id => id !== propertyId)
-        : [...likedPropertyIds, propertyId]
-    });
+    if (isLiked) {
+      // Remove from both ids and data
+      set({
+        likedPropertyIds: likedPropertyIds.filter(existingId => existingId !== id),
+        likedPropertiesData: likedPropertiesData.filter(p => p.id !== id),
+      });
+    } else {
+      // Add id, and also add full property data if we can find it in featuredProperties
+      const propertyData = featuredProperties.find(p => p.id === id);
+      set({
+        likedPropertyIds: [...likedPropertyIds, id],
+        likedPropertiesData: propertyData
+          ? [...likedPropertiesData, propertyData]
+          : likedPropertiesData,
+      });
+    }
 
     try {
       if (isLiked) {
-        await apiClient.delete(`/api/favorites/${propertyId}`);
+        await apiClient.delete(`/api/favorites/${id}`);
       } else {
-        await apiClient.post(`/api/favorites/${propertyId}`);
+        await apiClient.post(`/api/favorites/${id}`);
       }
     } catch {
-      set({ likedPropertyIds });
+      // Revert on failure
+      set({ likedPropertyIds, likedPropertiesData });
     }
   },
 
