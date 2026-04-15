@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import useAuthStore from '../store/useAuthStore';
+import { GoogleLogin } from '@react-oauth/google';
 
 // --- Zod Validation Schema ---
 const loginSchema = z.object({
@@ -13,7 +14,7 @@ const loginSchema = z.object({
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, isLoading, error } = useAuthStore();
+  const { login, loginWithGoogle, isLoading, error } = useAuthStore();
 
   const {
     register,
@@ -30,6 +31,17 @@ const Login = () => {
     if (res.success) {
       navigate('/'); // Redirect to the homepage on successful login
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const res = await loginWithGoogle(credentialResponse.credential);
+    if (res.success) {
+      navigate('/');
+    }
+  };
+
+  const handleGoogleError = () => {
+    console.error('Google Login Failed');
   };
 
   return (
@@ -90,6 +102,30 @@ const Login = () => {
             {isLoading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
+
+        {/* Divider */}
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-4 bg-white text-slate-500">Or continue with</span>
+          </div>
+        </div>
+
+        {/* Google Sign In Button */}
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            useOneTap
+            theme="outline"
+            size="large"
+            text="signin_with"
+            shape="rectangular"
+            width="100%"
+          />
+        </div>
 
         {/* Link to Signup */}
         <p className="text-center text-sm text-slate-600 mt-6">

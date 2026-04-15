@@ -90,6 +90,28 @@ const useAuthStore = create((set, get) => ({
   },
 
   // ==========================================
+  // 2.5 GOOGLE AUTH FLOW
+  // ==========================================
+
+  loginWithGoogle: async (googleCredential) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await apiClient.post('/auth/google', { 
+        token: googleCredential 
+      });
+      set({ 
+        user: response.data.data, 
+        isAuthenticated: true, 
+        isLoading: false 
+      });
+      return { success: true };
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Google authentication failed', isLoading: false });
+      return { success: false };
+    }
+  },
+
+  // ==========================================
   // 3. SESSION MANAGEMENT
   // ==========================================
 
