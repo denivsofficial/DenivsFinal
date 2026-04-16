@@ -5,7 +5,7 @@ import { Facebook, Youtube, Twitter, Instagram, Mail, Phone } from 'lucide-react
 const companyLinks = [
   { label: 'About us',           path: '/about' },
   { label: 'Contact us',         path: '/contact' },
-  { label: 'Privacy Policy',     path: '/privacy-policy' },
+  { label: 'Privacy Policy',     path: '/Privacy Policy' },
   { label: 'Careers',            path: '/careers' },
   { label: 'Terms & Conditions', path: '/terms' },
   { label: 'Request Info',       path: '/request-info' },
