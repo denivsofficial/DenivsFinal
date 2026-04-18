@@ -9,6 +9,7 @@ import { Calculator } from 'lucide-react';
 import MoreProperty from '@/ComponentPages/MoreProperty';
 import Calculators from '@/ComponentPages/Calculator';
 import BrowseByCategory from '@/ComponentPages/BrowseByCategory';
+import ExploreMoreProperties from '@/ComponentPages/ExploreMoreProperties';
 
 
 
@@ -22,6 +23,7 @@ const Home = () => {
         </div>
         <Calculators/>
         <BrowseByCategory/>
+        <ExploreMoreProperties/>
         <PostPropertyBanner/>
         
       

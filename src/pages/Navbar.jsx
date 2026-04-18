@@ -15,7 +15,7 @@ const Navbar = () => {
     const handleLogout = async () => {
         await logout();
         setIsMenuOpen(false);
-        navigate('/'); 
+        window.location.href = '/';
     };
 
     const closeMenu = () => setIsMenuOpen(false);

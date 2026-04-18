@@ -4,9 +4,20 @@ import axios from 'axios';
 // --- API CLIENT SETUP ---
 // We export this so you can use it in your profile forms!
 export const apiClient = axios.create({
-  baseURL: 'https://api.denivs.com', // Keep this as your single source of truth
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
   withCredentials: true, 
 });
+
+// Add request interceptor to ensure credentials are sent
+apiClient.interceptors.request.use(
+  (config) => {
+    config.withCredentials = true;
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 const useAuthStore = create((set, get) => ({
   // --- STATE ---
@@ -85,6 +96,28 @@ const useAuthStore = create((set, get) => ({
       return { success: true };
     } catch (error) {
       set({ error: error.response?.data?.message || 'Invalid credentials', isLoading: false });
+      return { success: false };
+    }
+  },
+
+  // ==========================================
+  // 2.5 GOOGLE AUTH FLOW
+  // ==========================================
+
+  loginWithGoogle: async (googleCredential) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await apiClient.post('/auth/google', { 
+        token: googleCredential 
+      });
+      set({ 
+        user: response.data.data, 
+        isAuthenticated: true, 
+        isLoading: false 
+      });
+      return { success: true };
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Google authentication failed', isLoading: false });
       return { success: false };
     }
   },

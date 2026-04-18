@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import useAuthStore from '../store/useAuthStore';
+import { GoogleLogin } from '@react-oauth/google';
 
 // --- Zod Schemas based on your Mongoose Model ---
 const initiateSchema = z.object({
@@ -36,7 +37,7 @@ const Signup = () => {
   const [authValue, setAuthValue] = useState('');
   const [otp, setOtp] = useState('');
 
-  const { initiateSignup, verifyOtp, completeSignup, isLoading, error } = useAuthStore();
+  const { initiateSignup, verifyOtp, completeSignup, loginWithGoogle, isLoading, error } = useAuthStore();
 
   const { register: regInit, handleSubmit: handleInitSubmit, formState: { errors: initErrors } } = useForm({
     resolver: zodResolver(initiateSchema),
@@ -63,6 +64,17 @@ const Signup = () => {
   const onComplete = async (data) => {
     const res = await completeSignup(data.name, data.password, data.confirmPassword);
     if (res.success) navigate('/'); 
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const res = await loginWithGoogle(credentialResponse.credential);
+    if (res.success) {
+      navigate('/');
+    }
+  };
+
+  const handleGoogleError = () => {
+    console.error('Google Signup Failed');
   };
 
   return (
@@ -105,6 +117,30 @@ const Signup = () => {
                 {isLoading ? 'Sending...' : 'Send OTP'}
               </button>
             </form>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white text-slate-500">Or sign up with</span>
+              </div>
+            </div>
+
+            {/* Google Sign Up Button */}
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap
+                theme="outline"
+                size="large"
+                text="signup_with"
+                shape="rectangular"
+                width="100%"
+              />
+            </div>
 
             {/* 👈 THE NEW LOGIN REDIRECT LINK */}
             <p className="text-center text-sm text-slate-600 mt-8 pt-4 border-t border-slate-100">

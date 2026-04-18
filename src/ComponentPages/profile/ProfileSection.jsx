@@ -54,7 +54,13 @@ const ProfileSection = () => {
     setStatus({ loading: true, error: null, success: false });
 
     try {
-      const response = await apiClient.put("/api/profile/update", formData);
+      // Only send fields that have actual values (not empty strings)
+      const updateData = {};
+      if (formData.name && formData.name.trim()) updateData.name = formData.name.trim();
+      if (formData.contactNumber && formData.contactNumber.trim()) updateData.contactNumber = formData.contactNumber.trim();
+      if (formData.sellerType && formData.sellerType.trim()) updateData.sellerType = formData.sellerType;
+
+      const response = await apiClient.put("/api/profile/update", updateData);
 
       if (response.data.success) {
         await checkAuthSession();
@@ -64,7 +70,7 @@ const ProfileSection = () => {
     } catch (err) {
       setStatus({
         loading: false,
-        error: err.response?.data?.message || "Update failed",
+        error: err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || "Update failed",
         success: false,
       });
     }
