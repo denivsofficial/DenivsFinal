@@ -6,21 +6,21 @@ import { useNavigate } from "react-router-dom";
 
 const ProfileSection = () => {
   const navigate = useNavigate();
+
   const currentUser = useAuthStore((state) => state.user);
-    if (!currentUser) {
-      return (
-        <div className="text-center py-20 text-gray-500">
-          Loading profile...
-        </div>
-      );
-    }
+  const checkAuthSession = useAuthStore((state) => state.checkAuthSession);
+  const logout = useAuthStore((state) => state.logout);
+
+  const { myListings = [], fetchMyListings } = usePropertyStore();
+
   const [isEditing, setIsEditing] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: currentUser?.name || "",
-    contactNumber: currentUser?.contactNumber || "",
-    sellerType: currentUser?.sellerType || "Owner",
+    name: "",
+    contactNumber: "",
+    sellerType: "Owner",
   });
+
   const [profileImage, setProfileImage] = useState(null);
 
   const [status, setStatus] = useState({
@@ -35,16 +35,21 @@ const ProfileSection = () => {
     error: null,
   });
 
-  const checkAuthSession = useAuthStore((state) => state.checkAuthSession);
-  const logout = useAuthStore((state) => state.logout);
-
-  const { myListings = [], fetchMyListings } = usePropertyStore();
+  useEffect(() => {
+    if (currentUser) {
+      setFormData({
+        name: currentUser.name || "",
+        contactNumber: currentUser.contactNumber || "",
+        sellerType: currentUser.sellerType || "Owner",
+      });
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (currentUser?.role === "seller") {
       fetchMyListings();
     }
-  }, []);
+  }, [currentUser, fetchMyListings]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -54,13 +59,7 @@ const ProfileSection = () => {
     setStatus({ loading: true, error: null, success: false });
 
     try {
-      // Only send fields that have actual values (not empty strings)
-      const updateData = {};
-      if (formData.name && formData.name.trim()) updateData.name = formData.name.trim();
-      if (formData.contactNumber && formData.contactNumber.trim()) updateData.contactNumber = formData.contactNumber.trim();
-      if (formData.sellerType && formData.sellerType.trim()) updateData.sellerType = formData.sellerType;
-
-      const response = await apiClient.put("/api/profile/update", updateData);
+      const response = await apiClient.put("/api/profile/update", formData);
 
       if (response.data.success) {
         await checkAuthSession();
@@ -70,7 +69,7 @@ const ProfileSection = () => {
     } catch (err) {
       setStatus({
         loading: false,
-        error: err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || "Update failed",
+        error: err.response?.data?.message || "Update failed",
         success: false,
       });
     }
@@ -112,11 +111,18 @@ const ProfileSection = () => {
     }
   };
 
+  if (!currentUser) {
+    return (
+      <div className="text-center py-20 text-gray-500">
+        Loading profile...
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      
+      {/* Profile Card */}
       <div className="bg-white rounded-2xl shadow-md p-6 border border-slate-200">
-        
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold">My Profile</h2>
 
@@ -146,13 +152,14 @@ const ProfileSection = () => {
           )}
         </div>
 
+        {/* Profile Info */}
         <div className="flex items-center gap-6 mb-8">
           <div className="relative">
             <img
               src={
                 profileImage ||
                 `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                  currentUser?.name || "User"
+                  currentUser.name || "User"
                 )}`
               }
               alt="profile"
@@ -171,16 +178,16 @@ const ProfileSection = () => {
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold">{currentUser?.name}</h3>
-            <p className="text-sm text-gray-500">{currentUser?.email}</p>
+            <h3 className="text-lg font-semibold">{currentUser.name}</h3>
+            <p className="text-sm text-gray-500">{currentUser.email}</p>
             <p className="text-xs text-gray-400 mt-1 capitalize">
-              {currentUser?.role}
+              {currentUser.role}
             </p>
           </div>
         </div>
 
+        {/* Form */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
           <div>
             <label className="text-sm text-gray-600">Full Name</label>
             {isEditing ? (
@@ -191,7 +198,7 @@ const ProfileSection = () => {
                 className="mt-1 w-full border rounded-md p-2"
               />
             ) : (
-              <p className="mt-1 font-medium">{currentUser?.name}</p>
+              <p className="mt-1 font-medium">{currentUser.name}</p>
             )}
           </div>
 
@@ -206,12 +213,12 @@ const ProfileSection = () => {
               />
             ) : (
               <p className="mt-1 font-medium">
-                {currentUser?.contactNumber || "Not provided"}
+                {currentUser.contactNumber || "Not provided"}
               </p>
             )}
           </div>
 
-          {currentUser?.role === "seller" && (
+          {currentUser.role === "seller" && (
             <div>
               <label className="text-sm text-gray-600">Seller Type</label>
               {isEditing ? (
@@ -227,7 +234,7 @@ const ProfileSection = () => {
                 </select>
               ) : (
                 <p className="mt-1 font-medium">
-                  {currentUser?.sellerType}
+                  {currentUser.sellerType}
                 </p>
               )}
             </div>
@@ -236,7 +243,7 @@ const ProfileSection = () => {
           <div>
             <label className="text-sm text-gray-600">Subscription</label>
             <p className="mt-1 font-medium capitalize">
-              {currentUser?.subscription?.plan || "free"}
+              {currentUser.subscription?.plan || "free"}
             </p>
           </div>
         </div>
@@ -251,7 +258,8 @@ const ProfileSection = () => {
         )}
       </div>
 
-      {currentUser?.role === "seller" && (
+      {/* Listings */}
+      {currentUser.role === "seller" && (
         <div className="bg-white rounded-2xl shadow-md p-6 border border-slate-200">
           <h2 className="text-xl font-semibold mb-6">My Listings</h2>
 
@@ -285,6 +293,7 @@ const ProfileSection = () => {
         </div>
       )}
 
+      {/* Danger Zone */}
       <div className="bg-red-50 rounded-2xl p-6 border border-red-200">
         <h3 className="text-lg font-semibold text-red-700 mb-2">
           Danger Zone
