@@ -7,14 +7,16 @@ import PostProperty from '../pages/postProperty';
 import PropertyDisplayPage from '../pages/PropertyDisplayPage';
 import PropertyListPage from '../pages/PropertyListPage';
 import ProfileSection from '@/ComponentPages/profile/ProfileSection';
+import PrivacyPolicy from "@/ComponentPages/privacyPolicy";
 
 
 const AppRoutes = () => {
   return (
     <Routes>
       {/* 🟢 PUBLIC ROUTES */}
-      <Route path="/about" element={<AboutUs />} />
       <Route path="/" element={<Home />} />
+      <Route path="/about" element={<AboutUs />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
       <Route path="/properties" element={<PropertyListPage />} />
