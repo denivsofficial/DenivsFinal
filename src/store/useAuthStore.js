@@ -4,7 +4,7 @@ import axios from 'axios';
 // --- API CLIENT SETUP ---
 // We export this so you can use it in your profile forms!
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+  baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true, 
 });
 

@@ -1,400 +1,953 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Building, Home, MapPin, Briefcase, Store, UploadCloud, ChevronLeft, ChevronRight, CheckCircle2, X } from 'lucide-react';
-// 🚀 ADDED: Import your store and apiClient
-import useAuthStore, { apiClient } from '../store/useAuthStore';
+import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import {
+  Building, Home, MapPin, Briefcase, Store,
+  UploadCloud, ChevronLeft, ChevronRight,
+  CheckCircle2, X, User, Handshake, HardHat,
+  Phone, Lock,
+} from "lucide-react";
+import useAuthStore, { apiClient } from "../store/useAuthStore";
 
-// --- 1. THE ZOD VALIDATION SCHEMA ---
-const propertySchema = z.object({
-  propertyType: z.string().min(1, "Please select a property type"),
-  city: z.string().min(1, "City is required"),
-  locality: z.string().min(1, "Locality is required"),
-  project: z.string().optional(),
-  bedrooms: z.string().min(1, "Please select bedrooms"),
-  carpetArea: z.string().min(1, "Carpet area is required").regex(/^\d+$/, "Please enter numbers only (e.g., 850)"),
-  floor: z.string().min(1, "Floor number is required"),
-  price: z.string().min(1, "Price is required"),
-});
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const PostProperty = () => {
-  const navigate = useNavigate();
-  const user = useAuthStore((state) => state.user); // Grab user for Step 1 payload
-  
-  const [step, setStep] = useState(1);
-  const [previewImages, setPreviewImages] = useState([]);
-  // 🚀 ADDED: State to hold the draft ID and loading status
-  const [propertyId, setPropertyId] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [globalError, setGlobalError] = useState(null);
-  
-  const totalSteps = 4;
+const SELLER_TYPES = [
+  { id: "Owner",   emoji: "👤", label: "Owner",   desc: "I own this property"     },
+  { id: "Agent",   emoji: "🤝", label: "Agent",   desc: "Licensed broker / agent" },
+  { id: "Builder", emoji: "🏗️", label: "Builder", desc: "Developer or firm"       },
+];
 
-  // --- IMAGE UPLOAD HANDLERS ---
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length > 0) {
-      const newImages = files.map(file => ({
-        file,
-        preview: URL.createObjectURL(file)
-      }));
-      setPreviewImages(prev => [...prev, ...newImages]);
-    }
-  };
+const PROPERTY_TYPES = [
+  { id: "Apartment", emoji: "🏢", label: "Apartment / Flat",    desc: "Flat in a multi-storey building", accent: "border-blue-400 bg-blue-50"    },
+  { id: "House",     emoji: "🏠", label: "Independent House",   desc: "Villa, bungalow or row house",    accent: "border-emerald-400 bg-emerald-50" },
+  { id: "Land",      emoji: "🗺️", label: "Land / Plot",         desc: "Open plot, NA plot or farmland",  accent: "border-amber-400 bg-amber-50"   },
+  { id: "Office",    emoji: "💼", label: "Office Space",         desc: "Commercial office or co-working", accent: "border-purple-400 bg-purple-50" },
+  { id: "Shop",      emoji: "🏪", label: "Shop / Showroom",      desc: "Retail unit, shop or godown",     accent: "border-rose-400 bg-rose-50"    },
+];
 
-  const removeImage = (indexToRemove) => {
-    setPreviewImages(prev => prev.filter((_, index) => index !== indexToRemove));
-  };
+const AMENITIES = [
+  "Lift", "Parking", "Security", "CCTV", "Gym",
+  "Swimming Pool", "Club House", "Garden", "Power Backup",
+  "Intercom", "Rain Water Harvesting", "Children Play Area",
+  "Fire Safety", "Piped Gas", "Visitor Parking",
+];
 
-  // --- REACT HOOK FORM SETUP ---
-  const { register, handleSubmit, trigger, watch, setValue, formState: { errors } } = useForm({
-    resolver: zodResolver(propertySchema),
-    defaultValues: { propertyType: '' }
-  });
+const CITIES = [
+  "Pune", "Chh. Sambhajinagar", "Mumbai",
+  "Nashik", "Nagpur", "Thane",
+];
 
-  const selectedType = watch('propertyType');
+const STEP_LABELS = ["Who & What", "Location", "Details", "Pricing & Photos"];
 
-  // --- STEP NAVIGATION & API LOGIC ---
-  const handleNext = async () => {
-    setGlobalError(null);
-    let fieldsToValidate = [];
-    if (step === 1) fieldsToValidate = ['propertyType'];
-    if (step === 2) fieldsToValidate = ['city', 'locality'];
-    if (step === 3) fieldsToValidate = ['bedrooms', 'carpetArea', 'floor'];
-    if (step === 4) fieldsToValidate = ['price'];
+// ─── Small reusable pieces ────────────────────────────────────────────────────
 
-    const isStepValid = await trigger(fieldsToValidate);
-    
-    if (isStepValid) {
-      // 🚀 HIT 1: Create the Draft when leaving Step 1
-      if (step === 1) {
-        setIsSubmitting(true);
-        try {
-          const response = await apiClient.post('/api/properties', {
-            propertyType: selectedType,
-            transactionType: "Sale", // Hardcoded per your backend docs
-            contactNumber: user?.contactNumber || "0000000000", // Fallback if missing
-            sellerType: user?.sellerType || "Owner"
-          });
-          
-          if (response.data.success) {
-            setPropertyId(response.data.data._id); // Save the new ID!
-            setStep(2);
-          }
-        } catch (error) {
-          setGlobalError(error.response?.data?.message || "Failed to create draft.");
-        } finally {
-          setIsSubmitting(false);
-        }
-      } else {
-        // Just move to the next UI step for 2 & 3
-        setStep((prev) => prev + 1);
-      }
-    }
-  };
-
-  const handleBack = () => {
-    setGlobalError(null);
-    setStep((prev) => prev - 1);
-  };
-
-
-// 🚀 HIT 2: Submit the rest of the data and images
-  const onSubmit = async (data) => {
-    setGlobalError(null);
-    setIsSubmitting(true);
-    
-    try {
-      const submitData = new FormData();
-      
-      // 1. Package the Location Object (Backend expects a JSON string)
-      const locationObj = {
-        city: data.city,
-        address: data.locality, // Mapping locality to address
-        // You can add state/pincode later if you add them to your form
-      };
-      submitData.append('location', JSON.stringify(locationObj));
-
-      // 2. Package the Residential Details Object
-      const residentialDetailsObj = {
-        bedrooms: parseInt(data.bedrooms), // Extract number from "2 BHK"
-        carpetArea: parseInt(data.carpetArea),
-        floorNumber: parseInt(data.floor)
-      };
-      submitData.append('residentialDetails', JSON.stringify(residentialDetailsObj));
-
-      // 3. Package the Price Object
-      const priceObj = {
-        value: parseInt(data.price),
-        currency: "INR",
-        isNegotiable: false
-      };
-      submitData.append('price', JSON.stringify(priceObj));
-
-      // 4. Add the flat text fields
-      if (data.project) submitData.append('title', data.project);
-      
-      // 5. CRITICAL: Tell the backend the form is finished!
-      submitData.append('formStep', '4');
-      submitData.append('formStatus', 'published'); // This makes it visible in the feed
-
-      // 6. Append all image files
-      previewImages.forEach((img) => {
-        submitData.append('images', img.file);
-      });
-
-      // Send the PUT request using the propertyId we got from Step 1
-      const response = await apiClient.put(`/api/properties/${propertyId}`, submitData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      if (response.data.success) {
-        setStep(5); // Show success screen!
-      }
-    } catch (error) {
-      setGlobalError(error.response?.data?.message || "Failed to upload property details.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  // --- UI RENDERER ---
+function FieldLabel({ children, required }) {
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200 min-h-[600px] flex flex-col mt-4">
-        
-        {/* Header */}
-        {step < 5 && (
-          <div className="border-b border-slate-100 p-6 text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-                <div className='bg-[#001A33] p-1 rounded-md'>
-                    <div className='w-4 h-4 border-2 border-white rounded-sm'></div>
-                </div>
-                <span className='font-bold text-lg tracking-tight text-[#001A33]'>DENIVS</span>
+    <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5">
+      {children}
+      {required && <span className="text-amber-500 ml-1">*</span>}
+    </label>
+  );
+}
+
+function FieldError({ msg }) {
+  if (!msg) return null;
+  return (
+    <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
+      <span>⚠</span> {msg}
+    </p>
+  );
+}
+
+function InputBase({ className = "", ...props }) {
+  return (
+    <input
+      className={`w-full h-11 border border-slate-200 rounded-xl px-3.5 text-sm text-slate-800
+        bg-white focus:outline-none focus:ring-2 focus:ring-[#0A1628]/20 focus:border-[#0A1628]
+        placeholder:text-slate-300 transition-all ${className}`}
+      {...props}
+    />
+  );
+}
+
+function SelectBase({ className = "", children, ...props }) {
+  return (
+    <select
+      className={`w-full h-11 border border-slate-200 rounded-xl px-3.5 text-sm text-slate-800
+        bg-white focus:outline-none focus:ring-2 focus:ring-[#0A1628]/20 focus:border-[#0A1628]
+        transition-all cursor-pointer ${className}`}
+      {...props}
+    >
+      {children}
+    </select>
+  );
+}
+
+function Divider({ label }) {
+  return (
+    <div className="flex items-center gap-3 my-5">
+      <div className="flex-1 h-px bg-slate-100" />
+      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
+}
+
+function Callout({ type = "info", children }) {
+  const styles = {
+    info:    "bg-blue-50 border-blue-200 text-blue-700",
+    warning: "bg-amber-50 border-amber-200 text-amber-700",
+    success: "bg-emerald-50 border-emerald-200 text-emerald-700",
+  };
+  const icons = { info: "ℹ️", warning: "⚠️", success: "✅" };
+  return (
+    <div className={`flex gap-2.5 items-start p-3.5 rounded-xl border text-xs leading-relaxed ${styles[type]}`}>
+      <span className="mt-px shrink-0">{icons[type]}</span>
+      <span>{children}</span>
+    </div>
+  );
+}
+
+function Toggle({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${checked ? "bg-[#0A1628]" : "bg-slate-200"}`}
+    >
+      <span
+        className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${checked ? "translate-x-5" : ""}`}
+      />
+    </button>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
+export default function PostProperty() {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+
+  // Step 1+2 (merged)
+  const [sellerType,    setSellerType]    = useState("");
+  const [agentReraId,   setAgentReraId]   = useState("");
+  const [contactNumber, setContactNumber] = useState("");
+  const [contactLocked, setContactLocked] = useState(false);
+  const [propertyType,  setPropertyType]  = useState("");
+
+  // Step 2 — Location
+  const [city,     setCity]     = useState("");
+  const [locality, setLocality] = useState("");
+  const [stateName,setStateName]= useState("Maharashtra");
+  const [pincode,  setPincode]  = useState("");
+  const [project,  setProject]  = useState("");
+
+  // Step 3 — Details (dynamic)
+  const [bedrooms,    setBedrooms]    = useState("");
+  const [bathrooms,   setBathrooms]   = useState("");
+  const [furnishing,  setFurnishing]  = useState("Unfurnished");
+  const [carpetArea,  setCarpetArea]  = useState("");
+  const [floorNo,     setFloorNo]     = useState("");
+  const [totalFloors, setTotalFloors] = useState("");
+  const [plotArea,    setPlotArea]    = useState("");
+  const [facing,      setFacing]      = useState("");
+  const [isGated,     setIsGated]     = useState(false);
+  const [commArea,    setCommArea]    = useState("");
+  const [commFloor,   setCommFloor]   = useState("");
+  const [washrooms,   setWashrooms]   = useState("");
+  const [commFurnish, setCommFurnish] = useState("Bare Shell");
+  const [amenities,   setAmenities]   = useState([]);
+
+  // Step 4 — Pricing & Photos
+  const [price,        setPrice]        = useState("");
+  const [isNegotiable, setIsNegotiable] = useState(false);
+  const [isResale,     setIsResale]     = useState(null);
+  const [reraId,       setReraId]       = useState("");
+  const [propTitle,    setPropTitle]    = useState("");
+  const [description,  setDescription]  = useState("");
+  const [images,       setImages]       = useState([]);
+
+  // App state
+  const [step,       setStep]       = useState(1);
+  const [propertyId, setPropertyId] = useState(null);
+  const [isLoading,  setIsLoading]  = useState(false);
+  const [errors,     setErrors]     = useState({});
+
+  // ── Auto-fill contact from user profile ──────────────────────────────────────
+  useEffect(() => {
+    if (user?.contactNumber) {
+      setContactNumber(user.contactNumber);
+      setContactLocked(true);
+    }
+  }, [user]);
+
+  // ── Computed flags ───────────────────────────────────────────────────────────
+  const isResidential = propertyType === "Apartment" || propertyType === "House";
+  const isLand        = propertyType === "Land";
+  const isCommercial  = propertyType === "Office" || propertyType === "Shop";
+
+  // ── Validation ───────────────────────────────────────────────────────────────
+  const validate = (forStep) => {
+    const e = {};
+    if (forStep === 1) {
+      if (!sellerType)                                  e.sellerType    = "Please select how you are listing.";
+      if (!propertyType)                                e.propertyType  = "Please select a property type.";
+      if (!contactNumber || !/^\d{10}$/.test(contactNumber))
+                                                        e.contactNumber = "Enter a valid 10-digit mobile number.";
+      if (sellerType === "Agent" && !agentReraId.trim()) e.agentReraId  = "Agent RERA ID is required.";
+    }
+    if (forStep === 2) {
+      if (!city)            e.city     = "Please select a city.";
+      if (!locality.trim()) e.locality = "Please enter the locality / area.";
+    }
+    if (forStep === 3) {
+      if (isResidential) {
+        if (!bedrooms)   e.bedrooms   = "Please select number of bedrooms.";
+        if (!carpetArea) e.carpetArea = "Please enter carpet area.";
+      }
+      if (isLand      && !plotArea)  e.plotArea  = "Please enter plot area.";
+      if (isCommercial && !commArea) e.commArea  = "Please enter carpet area.";
+    }
+    if (forStep === 4) {
+      if (!price)             e.price    = "Please enter the expected price.";
+      if (isResale === null)  e.isResale = "Please indicate if this is a resale property.";
+      if (isResale === false && !reraId.trim()) e.reraId = "Project RERA ID is required for new properties.";
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  // ── Navigation ───────────────────────────────────────────────────────────────
+  const handleNext = async () => {
+    if (!validate(step)) return;
+
+    // Step 1 → POST /api/properties  (lead is captured here)
+    if (step === 1) {
+      setIsLoading(true);
+      try {
+        const res = await apiClient.post("/api/properties", {
+          propertyType,
+          transactionType: "Sale",
+          contactNumber,
+          sellerType,
+          ...(sellerType === "Agent" && { agentReraId }),
+        });
+        if (res.data.success) {
+          setPropertyId(res.data.data._id);
+          toast.success("Draft saved! You can always come back to continue.");
+          setStep(2);
+        } else {
+          toast.error(res.data.message || "Failed to save. Please try again.");
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Network error. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+    setStep((s) => s + 1);
+  };
+
+  const handleBack = () => { setErrors({}); setStep((s) => s - 1); };
+
+  // ── Final submit → PUT /api/properties/:id ───────────────────────────────────
+  const handleSubmit = async () => {
+    if (!validate(4)) return;
+    if (!propertyId) { toast.error("Draft not found. Please restart."); return; }
+
+    setIsLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("location", JSON.stringify({ city, address: locality, state: stateName, pincode }));
+
+      if (isResidential) {
+        fd.append("residentialDetails", JSON.stringify({
+          bedrooms: parseInt(bedrooms),
+          bathrooms: parseInt(bathrooms) || undefined,
+          furnishingStatus: furnishing,
+          carpetArea: parseInt(carpetArea),
+          floorNumber: parseInt(floorNo) || undefined,
+          totalFloors: parseInt(totalFloors) || undefined,
+        }));
+      } else if (isLand) {
+        fd.append("plotDetails", JSON.stringify({ plotArea: parseInt(plotArea), facing: facing || undefined, gatedCommunity: isGated }));
+      } else if (isCommercial) {
+        fd.append("commercialDetails", JSON.stringify({
+          carpetArea: parseInt(commArea),
+          floorNumber: parseInt(commFloor) || undefined,
+          washrooms: parseInt(washrooms) || 0,
+          furnishingStatus: commFurnish,
+        }));
+      }
+
+      fd.append("price", JSON.stringify({ value: parseInt(price), currency: "INR", isNegotiable }));
+      if (propTitle)        fd.append("title",            propTitle);
+      if (description)      fd.append("description",      description);
+      if (project)          fd.append("project",          project);
+      if (amenities.length) fd.append("amenities",        JSON.stringify(amenities));
+      fd.append("isResaleProperty", String(isResale));
+      if (isResale === false && reraId) fd.append("reraId", reraId.toUpperCase());
+      fd.append("formStep",   "4");
+      fd.append("formStatus", "published");
+      images.forEach((img) => fd.append("images", img.file));
+
+      const res = await apiClient.put(`/api/properties/${propertyId}`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (res.data.success) setStep(5);
+      else toast.error(res.data.message || "Submission failed.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Upload failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleImageChange = (e) => {
+    Array.from(e.target.files).forEach((file) => {
+      const r = new FileReader();
+      r.onload = (ev) => setImages((prev) => [...prev, { file, preview: ev.target.result }]);
+      r.readAsDataURL(file);
+    });
+  };
+  const removeImage    = (i) => setImages((prev) => prev.filter((_, idx) => idx !== i));
+  const toggleAmenity  = (name) =>
+    setAmenities((prev) => prev.includes(name) ? prev.filter((a) => a !== name) : [...prev, name]);
+
+  const formatINR = (val) => {
+    const n = parseInt(val);
+    if (!n || isNaN(n)) return null;
+    if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
+    if (n >= 100_000)    return `₹${(n / 100_000).toFixed(2)} Lakh`;
+    return `₹${n.toLocaleString("en-IN")}`;
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-start justify-center py-8 px-4">
+      <ToastContainer position="top-right" autoClose={3000} />
+
+      <div className="w-full max-w-xl">
+        {/* Brand */}
+        <div className="flex items-center gap-2.5 mb-6">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-[#0A1628] rounded-xl flex items-center justify-center shadow-lg shadow-slate-900/20">
+              <div className="w-4 h-4 border-2 border-white rounded-sm" />
             </div>
-            <p className="text-xs font-semibold text-slate-400 text-left">Step {step} of {totalSteps}</p>
-          </div>
-        )}
+            <span className="text-[#0A1628] text-lg font-bold tracking-tight">One Meter Square</span>
+          </Link>
+        </div>
 
-        {/* Global Error Banner */}
-        {globalError && (
-            <div className="mx-6 mt-4 p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200 text-center font-medium">
-                {globalError}
-            </div>
-        )}
+        <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/80 border border-slate-100 overflow-hidden">
 
-        {/* Dynamic Body */}
-        <div className="p-6 flex-grow flex flex-col">
-          
-          {/* STEP 1 */}
-          {step === 1 && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-              <h2 className="text-xl font-bold text-center mb-2">Post Your Property</h2>
-              <p className="text-sm text-slate-500 text-center mb-6">What type of property are you selling?</p>
-              <div className="space-y-3">
-                {[
-                  { id: 'Apartment', label: 'Apartment', icon: Building },
-                  { id: 'House', label: 'House', icon: Home },
-                  { id: 'Land', label: 'Land / Plot', icon: MapPin },
-                  { id: 'Office', label: 'Office', icon: Briefcase },
-                  { id: 'Shop', label: 'Shop', icon: Store },
-                ].map((type) => (
-                  <button
-                    key={type.id}
-                    onClick={() => setValue('propertyType', type.id, { shouldValidate: true })}
-                    className={`w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-all duration-200 ${
-                      selectedType === type.id ? 'border-[#001A33] bg-blue-50/50' : 'border-slate-100 hover:border-slate-300'
-                    }`}
-                  >
-                    <type.icon className={selectedType === type.id ? 'text-[#001A33]' : 'text-slate-500'} />
-                    <span className="font-semibold text-slate-700">{type.label}</span>
-                  </button>
-                ))}
-              </div>
-              {errors.propertyType && <p className="text-red-500 text-xs mt-2 text-center">{errors.propertyType.message}</p>}
-            </div>
-          )}
-
-          {/* STEP 2 */}
-          {step === 2 && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-5">
-              <h2 className="text-xl font-bold mb-6">Where is the property located?</h2>
-              <div>
-                <label className="text-sm font-semibold text-slate-600">City</label>
-                <select {...register('city')} className="w-full mt-1 h-11 border border-slate-300 rounded-lg px-3 bg-white focus:ring-2 focus:ring-[#001A33] focus:outline-none">
-                  <option value="">Select City</option>
-                  <option value="Pune">Pune</option>
-                  <option value="Chh. Sambhajinagar">Chh. Sambhajinagar</option>
-                  <option value="Mumbai">Mumbai</option>
-                </select>
-                {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city.message}</p>}
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-600">Locality / Area</label>
-                <input {...register('locality')} placeholder="e.g. Cidco N-4" className="w-full mt-1 h-11 border border-slate-300 rounded-lg px-3 focus:ring-2 focus:ring-[#001A33] focus:outline-none" />
-                {errors.locality && <p className="text-red-500 text-xs mt-1">{errors.locality.message}</p>}
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-slate-600">Project / Building (optional)</label>
-                <input {...register('project')} placeholder="Enter Project Name" className="w-full mt-1 h-11 border border-slate-300 rounded-lg px-3 focus:ring-2 focus:ring-[#001A33] focus:outline-none" />
-              </div>
-            </div>
-          )}
-
-         {/* STEP 3 */}
-          {step === 3 && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-5">
-              <h2 className="text-xl font-bold mb-6">Tell us about the property</h2>
-              
-              <div>
-                <label className="text-sm font-semibold text-slate-600">Bedrooms</label>
-                <select {...register('bedrooms')} className="w-full mt-1 h-11 border border-slate-300 rounded-lg px-3 bg-white focus:ring-2 focus:ring-[#001A33] focus:outline-none">
-                  <option value="">Select</option>
-                  <option value="1 BHK">1 BHK</option>
-                  <option value="2 BHK">2 BHK</option>
-                  <option value="3 BHK">3 BHK</option>
-                  <option value="4+ BHK">4+ BHK</option>
-                </select>
-                {errors.bedrooms && <p className="text-red-500 text-xs mt-1">{errors.bedrooms.message}</p>}
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-slate-600">Carpet Area</label>
-                <div className="relative mt-1">
-                  <input 
-                    type="text" 
-                    inputMode="numeric"
-                    {...register('carpetArea')} 
-                    placeholder="850" 
-                    className="w-full h-11 border border-slate-300 rounded-lg pl-3 pr-14 focus:ring-2 focus:ring-[#001A33] focus:outline-none" 
-                  />
-                  <span className="absolute right-3 top-2.5 text-slate-400 text-sm font-medium">sq.ft.</span>
-                </div>
-                {errors.carpetArea && <p className="text-red-500 text-xs mt-1">{errors.carpetArea.message}</p>}
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-slate-600">Floor Number</label>
-                <input type="number" {...register('floor')} placeholder="e.g. 4" className="w-full mt-1 h-11 border border-slate-300 rounded-lg px-3 focus:ring-2 focus:ring-[#001A33] focus:outline-none" />
-                {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor.message}</p>}
-              </div>
-            </div>
-          )}
-          
-          {/* STEP 4 */}
-          {step === 4 && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-5">
-              <h2 className="text-xl font-bold mb-6">Set your price & photos</h2>
-              <div>
-                <label className="text-sm font-semibold text-slate-600">Expected Price</label>
-                <div className="relative mt-1">
-                  <span className="absolute left-3 top-2.5 text-slate-500 font-semibold">₹</span>
-                  <input type="number" {...register('price')} placeholder="45,00,000" className="w-full h-11 border border-slate-300 rounded-lg pl-8 pr-3 focus:ring-2 focus:ring-[#001A33] focus:outline-none" />
-                </div>
-                {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price.message}</p>}
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-slate-600 block mb-2">Photos</label>
-                <input 
-                  type="file" 
-                  id="property-images" 
-                  multiple 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={handleImageChange}
-                />
-                <label 
-                  htmlFor="property-images"
-                  className="border-2 border-dashed border-slate-300 rounded-lg p-8 flex flex-col items-center justify-center text-center bg-slate-50 hover:bg-slate-100 transition cursor-pointer"
-                >
-                  <div className="bg-[#001A33] text-white p-2 rounded-full mb-3">
-                    <UploadCloud size={24} />
-                  </div>
-                  <p className="font-bold text-[#001A33]">Upload Photos</p>
-                  <p className="text-xs text-slate-500 mt-1">Drag & drop or <span className="underline">Browse files</span></p>
-                </label>
-
-                {/* Previews */}
-                {previewImages.length > 0 && (
-                  <div className="grid grid-cols-3 gap-3 mt-4">
-                    {previewImages.map((img, index) => (
-                      <div key={index} className="relative rounded-lg overflow-hidden border border-slate-200 aspect-square group">
-                        <img src={img.preview} alt={`preview-${index}`} className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute top-1 right-1 bg-red-500/90 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X size={14} />
-                        </button>
+          {/* Progress bar */}
+          {step < 5 && (
+            <div className="px-6 pt-6 pb-5 border-b border-slate-100">
+              <div className="flex items-center gap-0">
+                {STEP_LABELS.map((label, i) => {
+                  const n    = i + 1;
+                  const done = n < step;
+                  const curr = n === step;
+                  return (
+                    <div key={n} className="flex items-center flex-1 last:flex-none">
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold transition-all duration-300
+                          ${done ? "bg-amber-400 text-white shadow-sm shadow-amber-200" : ""}
+                          ${curr ? "bg-[#0A1628] text-white shadow-md shadow-slate-900/20" : ""}
+                          ${!done && !curr ? "bg-slate-100 text-slate-400 border border-slate-200" : ""}`}>
+                          {done ? "✓" : n}
+                        </div>
+                        <span className={`text-[9px] font-medium uppercase tracking-wide whitespace-nowrap
+                          ${done ? "text-amber-500" : curr ? "text-[#0A1628]" : "text-slate-300"}`}>
+                          {label}
+                        </span>
                       </div>
-                    ))}
+                      {i < STEP_LABELS.length - 1 && (
+                        <div className={`flex-1 h-px mx-1.5 mb-4 transition-colors duration-300 ${done ? "bg-amber-300" : "bg-slate-100"}`} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════
+              STEP 1 — Who are you + What are you listing
+              One screen, two sections. API fires on Continue.
+              Lead is captured: contactNumber, sellerType,
+              agentReraId (if Agent), propertyType.
+              Backend: upgrades role buyer→seller, saves contact.
+          ═══════════════════════════════════════════════════ */}
+          {step === 1 && (
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-slate-900 mb-1">List your property</h2>
+              <p className="text-sm text-slate-400 mb-6">
+                Fill in the details below. We'll save a draft the moment you continue.
+              </p>
+
+              {/* User profile chip */}
+              <div className="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#0A1628] flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-md shadow-slate-900/20">
+                  {user?.name?.[0]?.toUpperCase() || "?"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 truncate">
+                    {user?.name}
+                  </p>
+                  <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+                </div>
+                {contactLocked && (
+                  <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1 text-xs font-semibold shrink-0">
+                    <Lock size={10} /> Verified
                   </div>
                 )}
               </div>
-            </div>
-          )}
 
-          {/* STEP 5 */}
-          {step === 5 && (
-            <div className="animate-in zoom-in duration-500 flex flex-col items-center justify-center text-center h-full space-y-6 py-8">
-              <CheckCircle2 size={64} className="text-green-500" />
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Property Submitted!</h2>
-                <p className="text-sm text-slate-600 max-w-[250px] mx-auto">
-                  Your property has been listed successfully. We will verify and publish it shortly.
-                </p>
+              {/* Contact number */}
+              <div className="mb-5">
+                <FieldLabel required>Contact number for this listing</FieldLabel>
+                {contactLocked ? (
+                  <div className="flex gap-2 items-center">
+                    <div className="h-11 px-3.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center text-sm text-slate-500 font-medium shrink-0">
+                      🇮🇳 +91
+                    </div>
+                    <div className="flex-1 h-11 border border-emerald-200 bg-emerald-50 rounded-xl px-3.5 flex items-center gap-2">
+                      <Phone size={14} className="text-emerald-500 shrink-0" />
+                      <span className="text-sm text-slate-700 font-medium">{contactNumber}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setContactLocked(false); setContactNumber(""); }}
+                      className="text-xs text-slate-400 hover:text-slate-700 underline underline-offset-2 shrink-0 transition-colors"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <div className="h-11 px-3.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center text-sm text-slate-500 font-medium shrink-0">
+                        🇮🇳 +91
+                      </div>
+                      <InputBase
+                        type="tel"
+                        maxLength={10}
+                        placeholder="98765 43210"
+                        value={contactNumber}
+                        onChange={(e) => setContactNumber(e.target.value.replace(/\D/g, ""))}
+                      />
+                    </div>
+                    {!user?.contactNumber && (
+                      <p className="text-[11px] text-slate-400 mt-1.5">
+                        This will also be saved to your profile.
+                      </p>
+                    )}
+                  </>
+                )}
+                <FieldError msg={errors.contactNumber} />
+              </div>
+
+              <Divider label="I am listing as" />
+
+              {/* Seller type */}
+              <div className="grid grid-cols-3 gap-3 mb-1">
+                {SELLER_TYPES.map(({ id, emoji, label, desc }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => { setSellerType(id); setErrors((e) => ({ ...e, sellerType: "" })); }}
+                    className={`flex flex-col items-center gap-2 py-4 px-2 rounded-2xl border-2 text-center transition-all duration-200
+                      ${sellerType === id
+                        ? "border-[#0A1628] bg-[#0A1628]/5 shadow-sm"
+                        : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}
+                  >
+                    <span className="text-2xl leading-none">{emoji}</span>
+                    <div>
+                      <p className={`text-[13px] font-semibold ${sellerType === id ? "text-[#0A1628]" : "text-slate-700"}`}>{label}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">{desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <FieldError msg={errors.sellerType} />
+
+              {/* Agent RERA block */}
+              {sellerType === "Agent" && (
+                <div className="mt-4 space-y-3">
+                  <Callout type="warning">
+                    As a licensed agent, your RERA ID is mandatory and will be verified before any listing goes live.
+                  </Callout>
+                  <div>
+                    <FieldLabel required>Your agent RERA ID</FieldLabel>
+                    <InputBase
+                      placeholder="e.g. A52100012345"
+                      value={agentReraId}
+                      onChange={(e) => setAgentReraId(e.target.value.toUpperCase())}
+                      className="uppercase tracking-widest font-mono"
+                    />
+                    <FieldError msg={errors.agentReraId} />
+                  </div>
+                </div>
+              )}
+
+              <Divider label="Property type" />
+
+              {/* Property type grid */}
+              <div className="grid grid-cols-2 gap-3 mb-1">
+                {PROPERTY_TYPES.map(({ id, emoji, label, desc, accent }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => { setPropertyType(id); setErrors((e) => ({ ...e, propertyType: "" })); }}
+                    className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all duration-200
+                      ${propertyType === id
+                        ? `${accent} shadow-sm`
+                        : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}
+                  >
+                    <span className="text-2xl shrink-0 leading-none">{emoji}</span>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-slate-800 truncate">{label}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">{desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <FieldError msg={errors.propertyType} />
+
+              <div className="mt-4">
+                <Callout type="info">
+                  We save a draft the moment you click Continue — even if you leave, your progress is safe.
+                </Callout>
+              </div>
+
+              <div className="mt-6">
+                <button
+                  onClick={handleNext}
+                  disabled={isLoading}
+                  className="w-full h-12 bg-[#0A1628] text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[#1B3A5C] transition-all disabled:opacity-60 shadow-lg shadow-slate-900/10"
+                >
+                  {isLoading
+                    ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving draft…</>
+                    : <>Continue <ChevronRight size={16} /></>
+                  }
+                </button>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Footer Navigation Buttons */}
-        <div className="border-t border-slate-100 p-6">
-          {step === 1 && (
-             <button 
-               onClick={handleNext} 
-               disabled={isSubmitting}
-               className="w-full h-12 bg-[#001A33] text-white rounded-lg font-bold hover:bg-[#13304c] transition flex justify-center items-center gap-2 disabled:opacity-50"
-             >
-               {isSubmitting ? 'Saving Draft...' : 'Continue'} {!isSubmitting && <ChevronRight size={18} />}
-             </button>
-          )}
+          {/* ═══════════════════════════════════════════════════
+              STEP 2 — Location
+          ═══════════════════════════════════════════════════ */}
+          {step === 2 && (
+            <div className="p-6 space-y-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-1">Where is it?</h2>
+                <p className="text-sm text-slate-400">Location is the biggest factor for buyers.</p>
+              </div>
 
-          {step > 1 && step < 4 && (
-            <div className="flex justify-between gap-4">
-              <button onClick={handleBack} className="w-1/3 h-12 bg-white border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50 transition flex justify-center items-center gap-1">
-                <ChevronLeft size={18} /> Back
-              </button>
-              <button onClick={handleNext} className="w-2/3 h-12 bg-[#001A33] text-white rounded-lg font-bold hover:bg-[#13304c] transition flex justify-center items-center gap-2">
-                Continue <ChevronRight size={18} />
-              </button>
+              <div>
+                <FieldLabel required>City</FieldLabel>
+                <SelectBase value={city} onChange={(e) => setCity(e.target.value)}>
+                  <option value="">Select city</option>
+                  {CITIES.map((c) => <option key={c}>{c}</option>)}
+                </SelectBase>
+                <FieldError msg={errors.city} />
+              </div>
+
+              <div>
+                <FieldLabel required>Locality / Area</FieldLabel>
+                <InputBase
+                  placeholder="e.g. Cidco N-4, Baner, Wakad"
+                  value={locality}
+                  onChange={(e) => setLocality(e.target.value)}
+                />
+                <FieldError msg={errors.locality} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel>State</FieldLabel>
+                  <InputBase value={stateName} onChange={(e) => setStateName(e.target.value)} />
+                </div>
+                <div>
+                  <FieldLabel>Pincode</FieldLabel>
+                  <InputBase
+                    placeholder="431001"
+                    maxLength={6}
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <FieldLabel>Project / Society / Building</FieldLabel>
+                <InputBase
+                  placeholder="e.g. Godrej Hill, Prestige Towers (optional)"
+                  value={project}
+                  onChange={(e) => setProject(e.target.value)}
+                />
+              </div>
             </div>
           )}
 
+          {/* ═══════════════════════════════════════════════════
+              STEP 3 — Property details (dynamic per type)
+          ═══════════════════════════════════════════════════ */}
+          {step === 3 && (
+            <div className="p-6 space-y-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-1">Tell us about it</h2>
+                <p className="text-sm text-slate-400">More detail = more serious buyers.</p>
+              </div>
+
+              {/* Residential */}
+              {isResidential && (
+                <>
+                  <div>
+                    <FieldLabel required>Bedrooms</FieldLabel>
+                    <div className="flex flex-wrap gap-2">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setBedrooms(String(n))}
+                          className={`px-5 py-2.5 rounded-xl text-sm font-medium border-2 transition-all
+                            ${bedrooms === String(n)
+                              ? "bg-[#0A1628] text-white border-[#0A1628]"
+                              : "border-slate-200 text-slate-600 hover:border-slate-300"}`}
+                        >
+                          {n === 5 ? "5+ BHK" : `${n} BHK`}
+                        </button>
+                      ))}
+                    </div>
+                    <FieldError msg={errors.bedrooms} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <FieldLabel>Bathrooms</FieldLabel>
+                      <SelectBase value={bathrooms} onChange={(e) => setBathrooms(e.target.value)}>
+                        <option value="">Select</option>
+                        {[1, 2, 3, "4+"].map((n) => <option key={n}>{n}</option>)}
+                      </SelectBase>
+                    </div>
+                    <div>
+                      <FieldLabel>Furnishing</FieldLabel>
+                      <SelectBase value={furnishing} onChange={(e) => setFurnishing(e.target.value)}>
+                        <option value="Unfurnished">Unfurnished</option>
+                        <option value="Semi-Furnished">Semi-Furnished</option>
+                        <option value="Furnished">Fully Furnished</option>
+                      </SelectBase>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <FieldLabel required>Carpet area</FieldLabel>
+                      <div className="relative">
+                        <InputBase
+                          type="number"
+                          placeholder="850"
+                          value={carpetArea}
+                          onChange={(e) => setCarpetArea(e.target.value)}
+                          className="pr-14"
+                        />
+                        <span className="absolute right-3.5 top-3 text-xs text-slate-400 pointer-events-none">sq.ft</span>
+                      </div>
+                      <FieldError msg={errors.carpetArea} />
+                    </div>
+                    <div>
+                      <FieldLabel>Floor no.</FieldLabel>
+                      <InputBase type="number" placeholder="4" value={floorNo} onChange={(e) => setFloorNo(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <FieldLabel>Total floors in building</FieldLabel>
+                    <InputBase type="number" placeholder="12" value={totalFloors} onChange={(e) => setTotalFloors(e.target.value)} />
+                  </div>
+                </>
+              )}
+
+              {/* Land */}
+              {isLand && (
+                <>
+                  <div>
+                    <FieldLabel required>Plot area</FieldLabel>
+                    <div className="relative">
+                      <InputBase type="number" placeholder="2400" value={plotArea} onChange={(e) => setPlotArea(e.target.value)} className="pr-14" />
+                      <span className="absolute right-3.5 top-3 text-xs text-slate-400 pointer-events-none">sq.ft</span>
+                    </div>
+                    <FieldError msg={errors.plotArea} />
+                  </div>
+                  <div>
+                    <FieldLabel>Facing direction</FieldLabel>
+                    <SelectBase value={facing} onChange={(e) => setFacing(e.target.value)}>
+                      <option value="">Select direction</option>
+                      {["North","South","East","West","North-East","North-West","South-East","South-West"].map((d) => (
+                        <option key={d}>{d}</option>
+                      ))}
+                    </SelectBase>
+                  </div>
+                  <div>
+                    <FieldLabel>Gated community</FieldLabel>
+                    <div className="flex gap-2">
+                      {[true, false].map((v) => (
+                        <button key={String(v)} type="button" onClick={() => setIsGated(v)}
+                          className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all
+                            ${isGated === v
+                              ? (v ? "bg-emerald-50 border-emerald-400 text-emerald-700" : "bg-blue-50 border-blue-400 text-blue-700")
+                              : "border-slate-200 text-slate-500 hover:border-slate-300"}`}>
+                          {v ? "Yes" : "No"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Commercial */}
+              {isCommercial && (
+                <>
+                  <div>
+                    <FieldLabel required>Carpet area</FieldLabel>
+                    <div className="relative">
+                      <InputBase type="number" placeholder="1200" value={commArea} onChange={(e) => setCommArea(e.target.value)} className="pr-14" />
+                      <span className="absolute right-3.5 top-3 text-xs text-slate-400 pointer-events-none">sq.ft</span>
+                    </div>
+                    <FieldError msg={errors.commArea} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <FieldLabel>Floor no.</FieldLabel>
+                      <InputBase type="number" placeholder="2" value={commFloor} onChange={(e) => setCommFloor(e.target.value)} />
+                    </div>
+                    <div>
+                      <FieldLabel>Washrooms</FieldLabel>
+                      <InputBase type="number" placeholder="1" value={washrooms} onChange={(e) => setWashrooms(e.target.value)} />
+                    </div>
+                  </div>
+                  <div>
+                    <FieldLabel>Furnishing</FieldLabel>
+                    <SelectBase value={commFurnish} onChange={(e) => setCommFurnish(e.target.value)}>
+                      <option value="Bare Shell">Bare Shell</option>
+                      <option value="Unfurnished">Unfurnished</option>
+                      <option value="Semi-Furnished">Semi-Furnished</option>
+                      <option value="Furnished">Furnished</option>
+                    </SelectBase>
+                  </div>
+                </>
+              )}
+
+              {/* Amenities */}
+              <Divider label="Amenities" />
+              <div className="flex flex-wrap gap-2">
+                {AMENITIES.map((a) => (
+                  <button key={a} type="button" onClick={() => toggleAmenity(a)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-medium border transition-all
+                      ${amenities.includes(a)
+                        ? "bg-[#0A1628] text-white border-[#0A1628]"
+                        : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`}>
+                    {a}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════
+              STEP 4 — Pricing, RERA, Photos
+              API: PUT /api/properties/:id  (final publish)
+          ═══════════════════════════════════════════════════ */}
           {step === 4 && (
-             <div className="flex justify-between gap-4">
-              <button disabled={isSubmitting} onClick={handleBack} className="w-1/3 h-12 bg-white border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-50 transition flex justify-center items-center gap-1 disabled:opacity-50">
-                <ChevronLeft size={18} /> Back
-              </button>
-              <button disabled={isSubmitting} onClick={handleSubmit(onSubmit)} className="w-2/3 h-12 bg-[#001A33] text-white rounded-lg font-bold hover:bg-[#13304c] transition flex justify-center items-center disabled:opacity-50">
-                {isSubmitting ? 'Uploading...' : 'Post Property'}
-              </button>
+            <div className="p-6 space-y-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-1">Set price & photos</h2>
+                <p className="text-sm text-slate-400">Almost there — price it right and add photos.</p>
+              </div>
+
+              {/* Price */}
+              <div>
+                <FieldLabel required>Expected price</FieldLabel>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-3 text-slate-500 font-semibold text-sm pointer-events-none">₹</span>
+                  <InputBase type="number" placeholder="4500000" value={price} onChange={(e) => setPrice(e.target.value)} className="pl-7" />
+                </div>
+                {price && (
+                  <div className="mt-2 px-3.5 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-sm flex items-center gap-2">
+                    <span className="font-bold text-amber-800">{formatINR(price)}</span>
+                    <span className="text-amber-600 text-xs">(₹{parseInt(price || 0).toLocaleString("en-IN")})</span>
+                  </div>
+                )}
+                <FieldError msg={errors.price} />
+              </div>
+
+              {/* Negotiable */}
+              <div className="flex items-center justify-between p-4 border border-slate-100 rounded-2xl bg-slate-50">
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">Price is negotiable</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Allow buyers to make offers below asking price</p>
+                </div>
+                <Toggle checked={isNegotiable} onChange={setIsNegotiable} />
+              </div>
+
+              {/* Resale */}
+              <Divider label="Property age" />
+              <div>
+                <FieldLabel required>Is this a resale property?</FieldLabel>
+                <div className="flex gap-2">
+                  {[
+                    { val: true,  label: "Yes, resale",                 cls: "bg-emerald-50 border-emerald-400 text-emerald-700" },
+                    { val: false, label: "No, new / under construction", cls: "bg-blue-50 border-blue-400 text-blue-700" },
+                  ].map(({ val, label, cls }) => (
+                    <button key={String(val)} type="button" onClick={() => setIsResale(val)}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all
+                        ${isResale === val ? cls : "border-slate-200 text-slate-500 hover:border-slate-300"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <FieldError msg={errors.isResale} />
+              </div>
+
+              {/* Project RERA — mirrors backend pre-validate hook */}
+              {isResale === false && (
+                <div className="space-y-3">
+                  <Callout type="warning">
+                    New properties require a project RERA ID before the listing goes live. Check MahaRERA for your project's ID.
+                  </Callout>
+                  <div>
+                    <FieldLabel required>Project RERA ID</FieldLabel>
+                    <InputBase
+                      placeholder="e.g. P52100047378"
+                      value={reraId}
+                      onChange={(e) => setReraId(e.target.value.toUpperCase())}
+                      className="uppercase tracking-widest font-mono"
+                    />
+                    <FieldError msg={errors.reraId} />
+                  </div>
+                </div>
+              )}
+
+              {/* Title + description */}
+              <Divider label="Listing details (optional)" />
+              <div>
+                <FieldLabel>Headline / Title</FieldLabel>
+                <InputBase
+                  placeholder="e.g. Spacious 2 BHK with parking in Cidco"
+                  maxLength={100}
+                  value={propTitle}
+                  onChange={(e) => setPropTitle(e.target.value)}
+                />
+                <p className="text-right text-[10px] text-slate-300 mt-1">{propTitle.length}/100</p>
+              </div>
+              <div>
+                <FieldLabel>Description</FieldLabel>
+                <textarea
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="Highlight key features, nearby landmarks, unique selling points…"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 bg-white
+                    focus:outline-none focus:ring-2 focus:ring-[#0A1628]/20 focus:border-[#0A1628]
+                    placeholder:text-slate-300 resize-none transition-all"
+                />
+              </div>
+
+              {/* Photos */}
+              <Divider label="Photos" />
+              <label htmlFor="imgUpload"
+                className="border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center text-center cursor-pointer hover:border-[#0A1628]/40 hover:bg-slate-50 transition-all">
+                <div className="w-12 h-12 bg-[#0A1628] rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-slate-900/10">
+                  <UploadCloud size={22} className="text-white" />
+                </div>
+                <p className="text-sm font-semibold text-slate-700 mb-1">Upload property photos</p>
+                <p className="text-xs text-slate-400">Drag & drop or click — JPG, PNG, WEBP</p>
+              </label>
+              <input id="imgUpload" type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
+
+              {images.length > 0 && (
+                <div className="grid grid-cols-4 gap-2.5">
+                  {images.map((img, i) => (
+                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 group">
+                      <img src={img.preview} alt="" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => removeImage(i)}
+                        className="absolute top-1.5 right-1.5 w-5 h-5 bg-slate-900/70 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
+          {/* ═══════════════════════════════════════════════════
+              STEP 5 — Success
+          ═══════════════════════════════════════════════════ */}
           {step === 5 && (
-             <button onClick={() => navigate('/')} className="w-full h-12 bg-[#001A33] text-white rounded-lg font-bold hover:bg-[#13304c] transition flex justify-center items-center">
-               Go to Dashboard
-             </button>
+            <div className="p-10 flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-5 shadow-lg shadow-emerald-200/80">
+                <CheckCircle2 size={38} className="text-emerald-500" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Property submitted!</h2>
+              <p className="text-sm text-slate-500 max-w-xs leading-relaxed mb-8">
+                Your listing is now under review. We'll verify the details and publish it shortly.
+                You'll get a notification once it's live.
+              </p>
+              <div className="flex gap-3 w-full max-w-xs">
+                <button onClick={() => navigate("/my-listings")}
+                  className="flex-1 h-11 bg-[#0A1628] text-white rounded-xl text-sm font-semibold hover:bg-[#1B3A5C] transition-all shadow-lg shadow-slate-900/10">
+                  My listings
+                </button>
+                <button onClick={() => navigate("/")}
+                  className="flex-1 h-11 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all">
+                  Back to home
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Footer nav (steps 2–4) */}
+          {step >= 2 && step <= 4 && (
+            <div className="px-6 pb-6 pt-2 flex gap-3 border-t border-slate-100">
+              <button onClick={handleBack}
+                className="h-12 px-5 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium flex items-center gap-1.5 hover:bg-slate-50 transition-all">
+                <ChevronLeft size={16} /> Back
+              </button>
+              <button
+                onClick={step === 4 ? handleSubmit : handleNext}
+                disabled={isLoading}
+                className="flex-1 h-12 bg-[#0A1628] text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-[#1B3A5C] transition-all disabled:opacity-60 shadow-lg shadow-slate-900/10"
+              >
+                {isLoading
+                  ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {step === 4 ? "Publishing…" : "Saving…"}</>
+                  : step === 4 ? <><CheckCircle2 size={16} /> Post property</> : <>Continue <ChevronRight size={16} /></>
+                }
+              </button>
+            </div>
           )}
         </div>
 
+        {/* Page footer */}
+        {step < 5 && (
+          <p className="text-center text-xs text-slate-400 mt-5 pb-4">
+            ©2024 One Meter Square, Inc. ·{" "}
+            <a href="#" className="hover:text-slate-600 underline underline-offset-2">Terms</a>
+            {" · "}
+            <a href="#" className="hover:text-slate-600 underline underline-offset-2">Privacy</a>
+          </p>
+        )}
       </div>
     </div>
   );
-};
-
-export default PostProperty;
+}
