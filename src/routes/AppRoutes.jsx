@@ -7,7 +7,7 @@ import PostProperty from '../pages/postProperty';
 import PropertyDisplayPage from '../pages/PropertyDisplayPage';
 import PropertyListPage from '../pages/PropertyListPage';
 import ProfileSection from '@/ComponentPages/profile/ProfileSection';
-import PrivacyPolicy from "@/ComponentPages/privacyPolicy";
+import PrivacyPolicy from "@/ComponentPages/PrivacyPolicy";
 
 
 const AppRoutes = () => {
