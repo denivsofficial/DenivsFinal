@@ -4,6 +4,7 @@ import Navbar from "./pages/Navbar";
 import AppRoutes from "./routes/AppRoutes";
 import useAuthStore from "./store/useAuthStore";
 import usePropertyStore from "./store/usePropertyStore";
+import ScrollToTop from "./ComponentPages/ScrollToTop";
 
 function App() {
   const checkAuthSession = useAuthStore((state) => state.checkAuthSession);
@@ -26,7 +27,8 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50 text-slate-900 font-sans">
       <Navbar />
-      <main className="pt-16"> 
+      <main className="pt-16">
+        <ScrollToTop /> 
         <AppRoutes />
       </main>
       <Footer/>
