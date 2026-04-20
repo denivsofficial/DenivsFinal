@@ -1,203 +1,348 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Heart, User, LogOut, Menu, X, Home, Building2 } from 'lucide-react';
-import useAuthStore from '../store/useAuthStore'; 
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import useAuthStore from '../store/useAuthStore';
 
-const Navbar = () => {
-    const navigate = useNavigate();
-    
-    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-    const user = useAuthStore((state) => state.user);
-    const logout = useAuthStore((state) => state.logout);
+export default function Navbar() {
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const user      = useAuthStore((s) => s.user);
+  const isAuth    = useAuthStore((s) => s.isAuthenticated);
+  const logout    = useAuthStore((s) => s.logout);
 
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [open,     setOpen]     = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const drawerRef = useRef(null);
 
-    const handleLogout = async () => {
-        await logout();
-        setIsMenuOpen(false);
-        window.location.href = '/';
+  // Scroll-aware border
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 6);
+    window.addEventListener('scroll', fn, { passive: true });
+    return () => window.removeEventListener('scroll', fn);
+  }, []);
+
+  // Close on route change
+  useEffect(() => { setOpen(false); }, [location.pathname]);
+
+  // Lock body scroll while drawer open
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  // Close on outside tap
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (drawerRef.current && !drawerRef.current.contains(e.target)) setOpen(false);
     };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
 
-    const closeMenu = () => setIsMenuOpen(false);
+  const handleLogout = async () => {
+    setOpen(false);
+    await logout();
+    window.location.href = '/';
+  };
 
-    return (
-        <nav className='bg-white/90 backdrop-blur-md shadow-sm fixed top-0 left-0 right-0 z-50 border-b border-gray-100'>
-            <div className='flex items-center justify-between px-6 py-3'>
-                
-                {/* Logo */}
-                <div 
-                    onClick={() => { navigate('/'); closeMenu(); }} 
-                    className='flex items-center cursor-pointer z-50'
+  // user store has a single `name` field (e.g. "Prathmesh Jadhav")
+  const fullName  = user?.name || 'Account';
+  const firstName = fullName.split(' ')[0];
+  const initial   = firstName[0]?.toUpperCase() ?? '?';
+
+  // Active route dot highlight
+  const isActive = (path) => location.pathname === path;
+
+  return (
+    <>
+      {/* ─── Navbar ─────────────────────────────────────────────── */}
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 bg-white transition-all duration-300
+          ${scrolled ? 'border-b border-slate-200 shadow-sm' : 'border-b border-slate-100'}`}
+      >
+        <div className="w-full flex items-center justify-between px-5 md:px-10 h-14.5">
+
+          {/* Wordmark */}
+          <button
+            onClick={() => navigate('/')}
+            className="font-black text-[22px] tracking-[.06em] text-[#001A33] hover:opacity-70 transition-opacity leading-none"
+            style={{ fontFamily: '"Times New Roman", Times, serif' }}
+          >
+            DENIVS
+          </button>
+
+          {/* ── Desktop right ── */}
+          <div className="hidden md:flex items-center gap-2">
+            {isAuth ? (
+              <>
+                {/* Saved */}
+                <Link
+                  to="/properties?mode=liked"
+                  className="h-9 px-5 rounded-full border-[1.5px] border-slate-200 text-[13px] font-bold text-[#555]
+                    inline-flex items-center
+                    hover:border-[#001A33] hover:text-[#001A33] transition-all"
                 >
-                    <span 
-                        className='font-bold text-xl tracking-tight text-slate-800'
-                        style={{ fontFamily: '"Times New Roman", Times, serif' }}
-                    >
-                        DENIVS
-                    </span>
-                </div>
+                  Saved
+                </Link>
 
-                {/* Desktop */}
-                <div className='hidden md:flex items-center text-slate-500'>
-                    {isAuthenticated ? (
-                        <div className='flex items-center'>
-                            <div className='flex items-center gap-6 pr-6'>
-                                <Link 
-                                    to="/properties?mode=liked" 
-                                    className='hover:text-red-500 transition'
-                                >
-                                    <Heart size={20} />
-                                </Link>
-                            </div>
-                            <div className='flex items-center gap-4 pl-6 border-l border-slate-200'>
-                                <div 
-                                    onClick={() => navigate('/profile')}
-                                    className="flex items-center gap-2 cursor-pointer hover:opacity-80"
-                                >
-                                    {user?.avatar ? (
-                                        <img 
-                                            src={user.avatar} 
-                                            alt="Profile" 
-                                            className="w-8 h-8 rounded-full border border-slate-200" 
-                                        />
-                                    ) : (
-                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                                            <User className='w-4 h-4 text-slate-500' />
-                                        </div>
-                                    )}
-                                    <span className="text-sm font-bold text-slate-700">
-                                        {user?.name?.split(' ')[0] || 'User'}
-                                    </span>
-                                </div>
-                                <LogOut 
-                                    onClick={handleLogout}
-                                    className='w-5 h-5 cursor-pointer text-slate-400 hover:text-red-500 transition ml-2' 
-                                />
-                            </div>
-                        </div>
-                    ) : (
-                        <div className='flex items-center gap-4'>
-                            <Link to="/login" className="text-sm font-bold text-slate-600">
-                                Log in
-                            </Link>
-                            <button 
-                                onClick={() => navigate('/signup')}
-                                className="text-sm font-bold bg-[#001A33] text-white px-5 py-2 rounded-xl"
-                            >
-                                Sign up
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Mobile Toggle */}
-                <button 
-                    className="md:hidden p-2 text-slate-600 rounded-lg hover:bg-slate-100 transition"
-                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                {/* List property — electric lemon FREE tag */}
+                <button
+                  onClick={() => navigate('/post-property')}
+                  className="h-9 pl-5 pr-2 rounded-full bg-[#001A33] text-white text-[13px] font-bold
+                    flex items-center gap-2 hover:bg-[#13304c] active:scale-[.97] transition-all"
                 >
-                    {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
+                  List property
+                  <span className="bg-[#E8FF47] text-[#1A1A00] text-[9px] font-black tracking-[.08em] uppercase px-2 py-0.5 rounded-full">
+                    FREE
+                  </span>
                 </button>
-            </div>
 
-            {/* Mobile Menu — full-screen overlay style */}
-            {isMenuOpen && (
-                <div className="md:hidden absolute top-full left-0 w-full bg-white border-t border-slate-100 shadow-2xl">
-                    
-                    {isAuthenticated ? (
-                        <div className="flex flex-col">
+                {/* Thin separator */}
+                <div className="w-px h-5 bg-[#E0DED8] mx-1" />
 
-                            {/* User card */}
-                            <div 
-                                onClick={() => { navigate('/profile'); closeMenu(); }}
-                                className="flex items-center gap-4 px-6 py-5 bg-slate-50 border-b border-slate-100 cursor-pointer active:bg-slate-100 transition"
-                            >
-                                {user?.avatar ? (
-                                    <img src={user.avatar} className="w-12 h-12 rounded-full border-2 border-white shadow-md" alt="avatar" />
-                                ) : (
-                                    <div className="w-12 h-12 rounded-full bg-[#001A33] flex items-center justify-center shadow-md">
-                                        <User className='w-5 h-5 text-white' />
-                                    </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-slate-800 truncate">{user?.name || 'User'}</p>
-                                    <p className="text-xs text-slate-400 capitalize mt-0.5">{user?.role || 'Member'} · View profile →</p>
-                                </div>
-                            </div>
+                {/* Avatar pill */}
+                <button
+                  onClick={() => navigate('/profile')}
+                  className="h-9 pl-1.5 pr-4 rounded-full border-[1.5px] border-slate-200 flex items-center gap-2
+                    hover:border-[#001A33] transition-all"
+                >
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt="" className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-[#001A33] flex items-center justify-center">
+                      <span className="text-[10px] font-black text-white" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
+                        {initial}
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-[13px] font-bold text-[#0D0D0D]">{firstName}</span>
+                </button>
 
-                            {/* Nav links */}
-                            <div className="flex flex-col px-4 py-3 gap-1">
+                {/* Logout — text only, minimal */}
+                <button
+                  onClick={handleLogout}
+                  className="h-9 px-4 rounded-full text-[13px] font-bold text-[#999]
+                    hover:text-[#001A33] hover:bg-slate-50 transition-all"
+                >
+                  Log out
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => navigate('/post-property')}
+                  className="h-9 pl-5 pr-2 rounded-full border-[1.5px] border-slate-200 text-[13px] font-bold text-[#555]
+                    flex items-center gap-2 hover:border-[#001A33] hover:text-[#001A33] transition-all"
+                >
+                  List property
+                  <span className="bg-[#E8FF47] text-[#1A1A00] text-[9px] font-black tracking-[.08em] uppercase px-2 py-0.5 rounded-full">
+                    FREE
+                  </span>
+                </button>
 
-                                <Link 
-                                    to="/"
-                                    onClick={closeMenu}
-                                    className="flex items-center gap-4 px-4 py-3.5 rounded-xl text-slate-700 font-semibold hover:bg-slate-50 active:bg-slate-100 transition"
-                                >
-                                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
-                                        <Home size={17} className="text-slate-500" />
-                                    </div>
-                                    Home
-                                </Link>
+                <div className="w-px h-5 bg-[#E0DED8] mx-1" />
 
-                                <Link 
-                                    to="/properties?mode=liked" 
-                                    onClick={closeMenu}
-                                    className="flex items-center gap-4 px-4 py-3.5 rounded-xl text-slate-700 font-semibold hover:bg-red-50 active:bg-red-100 transition"
-                                >
-                                    <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center">
-                                        <Heart size={17} className="text-red-500" />
-                                    </div>
-                                    Saved Properties
-                                </Link>
+                <Link
+                  to="/login"
+                  className="h-9 px-5 rounded-full text-[13px] font-bold text-[#555]
+                    inline-flex items-center
+                    hover:text-[#001A33] hover:bg-slate-50 transition-all"
+                >
+                  Log in
+                </Link>
 
-                                <Link 
-                                    to="/post-property"
-                                    onClick={closeMenu}
-                                    className="flex items-center gap-4 px-4 py-3.5 rounded-xl text-slate-700 font-semibold hover:bg-blue-50 active:bg-blue-100 transition"
-                                >
-                                    <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
-                                        <Building2 size={17} className="text-blue-600" />
-                                    </div>
-                                    Post a Property
-                                </Link>
-
-                            </div>
-
-                            {/* Logout */}
-                            <div className="px-4 pb-5 pt-2">
-                                <button 
-                                    onClick={handleLogout}
-                                    className="flex items-center justify-center gap-2.5 w-full py-3.5 font-bold text-red-500 bg-red-50 rounded-2xl border border-red-100 active:bg-red-100 transition text-sm"
-                                >
-                                    <LogOut size={17} />
-                                    Log out
-                                </button>
-                            </div>
-
-                        </div>
-                    ) : (
-                        /* Logged-out mobile menu */
-                        <div className="flex flex-col px-4 py-5 gap-3">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1 mb-1">Get Started</p>
-                            
-                            <button 
-                                onClick={() => { navigate('/login'); closeMenu(); }}
-                                className="w-full py-3.5 rounded-2xl border-2 border-slate-200 font-bold text-slate-700 text-sm hover:bg-slate-50 active:bg-slate-100 transition"
-                            >
-                                Log in
-                            </button>
-
-                            <button 
-                                onClick={() => { navigate('/signup'); closeMenu(); }}
-                                className="w-full py-3.5 rounded-2xl bg-[#001A33] font-bold text-white text-sm active:opacity-90 transition shadow-lg shadow-slate-900/20"
-                            >
-                                Create an account
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <button
+                  onClick={() => navigate('/signup')}
+                  className="h-9 px-5 rounded-full bg-[#001A33] text-white text-[13px] font-bold
+                    hover:bg-[#13304c] active:scale-[.97] transition-all"
+                >
+                  Sign up
+                </button>
+              </>
             )}
-        </nav>
-    );
-};
+          </div>
 
-export default Navbar;
+          {/* ── Mobile hamburger ── */}
+          <button
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Menu"
+            className="md:hidden w-9 h-9 rounded-full border-[1.5px] border-slate-200 bg-white flex flex-col items-center justify-center gap-1.25 transition-all hover:border-[#001A33]"
+          >
+            <span className={`block h-[1.5px] bg-[#001A33] rounded-full transition-all duration-300 ${open ? 'w-4 rotate-45 translate-y-[6.5px]' : 'w-4'}`} />
+            <span className={`block h-[1.5px] bg-[#001A33] rounded-full transition-all duration-300 ${open ? 'w-0 opacity-0' : 'w-2.5 self-end mr-0.75'}`} />
+            <span className={`block h-[1.5px] bg-[#001A33] rounded-full transition-all duration-300 ${open ? 'w-4 -rotate-45 -translate-y-[6.5px]' : 'w-4'}`} />
+          </button>
+
+        </div>
+      </nav>
+
+      {/* ─── Backdrop ───────────────────────────────────────────── */}
+      <div
+        onClick={() => setOpen(false)}
+        className={`md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300
+          ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+      />
+
+      {/* ─── Right-side drawer (dark) ────────────────────────────── */}
+      <div
+        ref={drawerRef}
+        className={`md:hidden fixed top-0 right-0 bottom-0 z-50 w-70 bg-[#001A33] flex flex-col
+          transition-transform duration-350 ease-[cubic-bezier(0.32,0.72,0,1)]
+          ${open ? 'translate-x-0' : 'translate-x-full'}`}
+      >
+        {/* Drawer header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-white/[.07]">
+          <span
+            className="text-white font-black text-[17px] tracking-[.06em]"
+            style={{ fontFamily: '"Times New Roman", Times, serif' }}
+          >
+            DENIVS
+          </span>
+          <button
+            onClick={() => setOpen(false)}
+            className="w-8 h-8 rounded-full border border-white/12 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-all"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Drawer body */}
+        <div className="flex-1 flex flex-col overflow-y-auto">
+
+          {isAuth ? (
+            <>
+              {/* User row */}
+              <button
+                onClick={() => { navigate('/profile'); setOpen(false); }}
+                className="flex items-center gap-3 px-6 py-4 border-b border-white/[.07] text-left hover:bg-white/4 active:bg-white/6 transition-colors"
+              >
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0">
+                    <span className="text-[14px] font-black text-[#001A33]" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
+                      {initial}
+                    </span>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-[14px] truncate">
+                    {fullName}
+                  </p>
+                  <p className="text-white/40 text-[11px] mt-0.5 capitalize">
+                    {user?.role || 'Member'} · View profile
+                  </p>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeOpacity=".2" strokeLinecap="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+
+              {/* Nav links — dot style */}
+              <nav className="flex-1 px-4 py-4 flex flex-col gap-0.5">
+                {[
+                  { label: 'Home',              to: '/'                       },
+                  { label: 'Saved properties',  to: '/properties?mode=liked'  },
+                  { label: 'My listings',       to: '/my-listings'            },
+                ].map(({ label, to }) => (
+                  <Link
+                    key={to}
+                    to={to}
+                    className={`flex items-center gap-3.5 px-4 py-3.5 rounded-xl transition-colors
+                      ${isActive(to)
+                        ? 'bg-white/6'
+                        : 'hover:bg-white/4'}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors
+                      ${isActive(to) ? 'bg-[#E8FF47]' : 'bg-white/20'}`}
+                    />
+                    <span className={`text-[14px] font-semibold transition-colors
+                      ${isActive(to) ? 'text-white' : 'text-white/60'}`}>
+                      {label}
+                    </span>
+                  </Link>
+                ))}
+              </nav>
+
+              {/* CTA card — electric lemon */}
+              <div className="mx-4 mb-4 rounded-2xl bg-[#E8FF47] p-5 relative overflow-hidden">
+                {/* subtle geometric accent */}
+                <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full border-16 border-[#0D0D0D]/6" />
+                <p className="text-[9px] font-black tracking-[.12em] uppercase text-[#1A1A00]/60 mb-1">It's completely free</p>
+                <p
+                  className="text-[#0D0D0D] font-black text-[18px] leading-[1.15] mb-4"
+                  style={{ fontFamily: '"Times New Roman", Times, serif' }}
+                >
+                  List your<br />property today
+                </p>
+                <button
+                  onClick={() => { navigate('/post-property'); setOpen(false); }}
+                  className="w-full h-10 rounded-full bg-white text-[#001A33] text-[12px] font-black tracking-[.03em]
+                    hover:bg-slate-100 active:scale-[.97] transition-all"
+                >
+                  List now →
+                </button>
+              </div>
+            </>
+          ) : (
+            /* Logged-out drawer */
+            <>
+              <div className="px-6 py-8 flex flex-col gap-3">
+                <p className="text-[11px] font-bold text-white/30 uppercase tracking-widest mb-2">Get started</p>
+                <button
+                  onClick={() => { navigate('/signup'); setOpen(false); }}
+                  className="w-full h-12 rounded-full bg-white text-[#001A33] text-[14px] font-black
+                    hover:bg-white/90 active:scale-[.97] transition-all"
+                >
+                  Create account
+                </button>
+                <button
+                  onClick={() => { navigate('/login'); setOpen(false); }}
+                  className="w-full h-12 rounded-full border border-white/12 text-white text-[14px] font-bold
+                    hover:border-white/30 hover:bg-white/4 active:scale-[.97] transition-all"
+                >
+                  Log in
+                </button>
+              </div>
+
+              {/* CTA card for logged-out */}
+              <div className="mx-4 mb-4 rounded-2xl bg-[#E8FF47] p-5 relative overflow-hidden">
+                <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full border-16 border-[#0D0D0D]/6" />
+                <p className="text-[9px] font-black tracking-[.12em] uppercase text-[#1A1A00]/60 mb-1">It's completely free</p>
+                <p
+                  className="text-[#0D0D0D] font-black text-[18px] leading-[1.15] mb-4"
+                  style={{ fontFamily: '"Times New Roman", Times, serif' }}
+                >
+                  List your<br />property today
+                </p>
+                <button
+                  onClick={() => { navigate('/post-property'); setOpen(false); }}
+                  className="w-full h-10 rounded-full bg-white text-[#001A33] text-[12px] font-black tracking-[.03em]
+                    hover:bg-slate-100 active:scale-[.97] transition-all"
+                >
+                  List now →
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Logout footer */}
+        {isAuth && (
+          <div className="px-4 pb-6 border-t border-white/[.07] pt-4">
+            <button
+              onClick={handleLogout}
+              className="w-full h-11 rounded-full border border-red-500/30 text-[13px] font-bold text-red-400
+                hover:bg-red-500/10 hover:border-red-500/50 active:scale-[.97] transition-all"
+            >
+              Log out
+            </button>
+          </div>
+        )}
+      </div>
+
+    </>
+  );
+}

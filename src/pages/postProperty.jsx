@@ -330,7 +330,7 @@ export default function PostProperty() {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-start justify-center py-8 px-4">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 flex items-start justify-center py-8 px-4">
       <ToastContainer position="top-right" autoClose={3000} />
 
       <div className="w-full max-w-xl">
@@ -340,7 +340,7 @@ export default function PostProperty() {
             <div className="w-9 h-9 bg-[#0A1628] rounded-xl flex items-center justify-center shadow-lg shadow-slate-900/20">
               <div className="w-4 h-4 border-2 border-white rounded-sm" />
             </div>
-            <span className="text-[#0A1628] text-lg font-bold tracking-tight">One Meter Square</span>
+            <span className="text-[#0A1628] text-lg font-bold tracking-tight">DENIVS</span>
           </Link>
         </div>
 
@@ -941,7 +941,7 @@ export default function PostProperty() {
         {/* Page footer */}
         {step < 5 && (
           <p className="text-center text-xs text-slate-400 mt-5 pb-4">
-            ©2024 One Meter Square, Inc. ·{" "}
+            DENIV Services ·{" "}
             <a href="#" className="hover:text-slate-600 underline underline-offset-2">Terms</a>
             {" · "}
             <a href="#" className="hover:text-slate-600 underline underline-offset-2">Privacy</a>
