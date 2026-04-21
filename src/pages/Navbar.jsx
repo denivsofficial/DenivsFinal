@@ -65,10 +65,11 @@ export default function Navbar() {
           {/* Wordmark */}
           <button
             onClick={() => navigate('/')}
-            className="font-black text-[22px] tracking-[.06em] text-[#001A33] hover:opacity-70 transition-opacity leading-none"
+            className="font-black text-[28px] tracking-[0.04em] leading-none flex items-center"
             style={{ fontFamily: '"Times New Roman", Times, serif' }}
           >
-            DENIVS
+            <span className="text-[#0A1F44]">DEN</span>
+            <span className="text-[#2F6BFF]">IVS</span>
           </button>
 
           {/* ── Desktop right ── */}

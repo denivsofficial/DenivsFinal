@@ -3,18 +3,15 @@ import { Link } from 'react-router-dom';
 import { Facebook, Youtube, Twitter, Instagram, Mail, Phone } from 'lucide-react';
 
 const companyLinks = [
-  { label: 'About us',           path: '/about' },
-  { label: 'Contact us',         path: '/contact' },
-  { label: 'Privacy Policy',     path: '/privacy-policy' },
-  { label: 'Careers',            path: '/careers' },
+  { label: 'About us', path: '/about' },
+  { label: 'Privacy Policy', path: '/privacy-policy' },
   { label: 'Terms & Conditions', path: '/terms' },
-  { label: 'Request Info',       path: '/request-info' },
-  { label: 'Feedback',           path: '/feedback' },
-  { label: 'Report a problem',   path: '/report' },
-  { label: 'Testimonials',       path: '/testimonials' },
-  { label: 'Summons/Notices',    path: '/summons' },
-  { label: 'Grievances',         path: '/grievances' },
-  { label: 'Safety Guide',       path: '/safety-guide' },
+  { label: 'Disclaimer', path: '/disclaimer' },
+  { label: 'No Brokerage & No Agency Declaration', path: '/no-brokerage' },
+  { label: 'RERA Disclaimer Page', path: '/rera-disclaimer' },
+  { label: 'Refund & Cancellation Policy', path: '/refund-policy' },
+  { label: 'Cookie Policy', path: '/cookie-policy' },
+  { label: 'Listing & Advertising Policy', path: '/listing-policy' },
 ];
 
 const socialLinks = [
