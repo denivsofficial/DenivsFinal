@@ -25,21 +25,21 @@ const FeaturedList = () => {
     .sort((a, b) => a.featuredRank - b.featuredRank);
 
   return (
-    <section className="pt-0 pb-12 px-4 md:px-10 bg-slate-50">
+    <section className="pt-0 pb-4 px-4 md:px-10 bg-slate-50">
       <div className="max-w-7xl mx-auto">
         
         <div className="mb-10 flex flex-col md:flex-row md:justify-between md:items-end gap-2">
           <div>
             <h2 className="text-3xl font-bold text-slate-900">Featured Listing</h2>
-            <p className="text-slate-500 mt-1">Your trusted real estate partner</p>
+            <p className="text-slate-500 mt-1">Your trusted real estate expert</p>
           </div>
         </div>
 
-        <div className="flex overflow-x-auto gap-6 pb-10 no-scrollbar snap-x snap-mandatory scroll-smooth">
+        <div className="flex overflow-x-auto gap-6 pb-6 pt-2 no-scrollbar snap-x snap-mandatory scroll-smooth">
           
           {isLoading ? (
             skeletonCards.map((n) => (
-              <div key={n} className="min-w-75 bg-white rounded-3xl shadow-md h-80 animate-pulse"></div>
+              <div key={n} className="min-w-75 bg-white rounded-3xl shadow-lg h-80 animate-pulse"></div>
             ))
           ) : featuredProperties.length === 0 ? (
             <div className="w-full py-12 text-center">
@@ -53,7 +53,7 @@ const FeaturedList = () => {
                 <div 
                   key={item.id}
                   onClick={() => navigate(`/property/${item.id}`)}
-                  className="min-w-75 bg-white rounded-3xl shadow-md cursor-pointer overflow-hidden"
+                  className="min-w-75 bg-white rounded-3xl shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden"
                 >
                   <div className="relative">
                     <img

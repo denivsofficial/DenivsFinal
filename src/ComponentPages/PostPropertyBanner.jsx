@@ -6,7 +6,7 @@ const PostPropertyBanner = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="relative w-full max-w-7xl mx-auto my-12 overflow-hidden bg-white rounded-3xl shadow-sm min-h-60 aspect-video md:h-[450px] md:aspect-auto">
+    <section className="relative w-full max-w-7xl mx-auto my-12 overflow-hidden bg-white rounded-3xl shadow-sm min-h-60 aspect-video md:h-112.5 md:aspect-auto">
       
       <img 
         src="/PostPropImg2.png" 
