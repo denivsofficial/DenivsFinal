@@ -1,12 +1,11 @@
 import { create } from 'zustand';
-import { apiClient } from './useAuthStore'; 
+import { apiClient } from './useAuthStore';
 
 const fallbackDummyData = [
   { id: 1, title: "Shivneri Heights", location: "CIDCO N-7, Sambhajinagar", price: "35,00,000", tags: ["SALE", "LAND"], specs: { bed: 2, bath: 2, area: "78.5 m²" }, image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800" },
   { id: 2, title: "Gajanan Residency", location: "Aurangpura, Sambhajinagar", price: "45,00,000", tags: ["RENT", "HOUSE"], specs: { bed: 4, bath: 2, area: "120 m²" }, image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800" },
 ];
 
-// Reusable formatter — used in both fetchProperties and fetchFavorites
 const formatProperty = (prop) => {
   const city = prop.location?.city || '';
   const address = prop.location?.address || prop.location?.locality || '';
@@ -41,6 +40,8 @@ const usePropertyStore = create((set, get) => ({
   error: null,
 
   featuredProperties: fallbackDummyData,
+  pagination: { currentPage: 1, totalPages: 1, totalProperties: 0 },
+
   likedPropertyIds: [],
   likedPropertiesData: [],
   myListings: [],
@@ -49,18 +50,40 @@ const usePropertyStore = create((set, get) => ({
   setFeaturedProperties: (propertiesFromBackend) =>
     set({ featuredProperties: propertiesFromBackend }),
 
+
   fetchProperties: async (filters = {}) => {
     set({ isLoading: true, error: null });
 
     try {
       const queryParams = new URLSearchParams();
 
-      if (filters.search) queryParams.append('search', filters.search);
-      if (filters.propertyType) queryParams.append('propertyType', filters.propertyType);
+      // Text / category filters
+      if (filters.search)           queryParams.append('search',           filters.search);
+      if (filters.city)             queryParams.append('city',             filters.city);
+      if (filters.propertyType)     queryParams.append('propertyType',     filters.propertyType);
+      if (filters.transactionType)  queryParams.append('transactionType',  filters.transactionType);
 
+      // Price range — both supported now
+      if (filters.minPrice != null && filters.minPrice !== '')
+        queryParams.append('minPrice', filters.minPrice);
+      if (filters.maxPrice != null && filters.maxPrice !== '')
+        queryParams.append('maxPrice', filters.maxPrice);
+
+      // Bedrooms
+      if (filters.bedrooms != null && filters.bedrooms !== '')
+        queryParams.append('bedrooms', filters.bedrooms);
+
+      // Status (default to Available if not specified)
+      queryParams.append('status', filters.status || 'Available');
+
+      // Pagination
+      if (filters.page)  queryParams.append('page',  filters.page);
+      if (filters.limit) queryParams.append('limit', filters.limit);
+
+      // Geo search
       if (filters.lat && filters.lng && filters.radius) {
-        queryParams.append('lat', filters.lat);
-        queryParams.append('lng', filters.lng);
+        queryParams.append('lat',    filters.lat);
+        queryParams.append('lng',    filters.lng);
         queryParams.append('radius', filters.radius);
       }
 
@@ -74,8 +97,18 @@ const usePropertyStore = create((set, get) => ({
         ? response.data.properties
         : [];
 
-      if (response.data.success && propertiesArray.length > 0) {
-        set({ featuredProperties: propertiesArray.map(formatProperty), isLoading: false });
+      const paginationData = response.data?.data;
+
+      if (response.data.success) {
+        set({
+          featuredProperties: propertiesArray.map(formatProperty),
+          pagination: {
+            currentPage:      paginationData?.currentPage      ?? 1,
+            totalPages:       paginationData?.totalPages       ?? 1,
+            totalProperties:  paginationData?.totalProperties  ?? propertiesArray.length,
+          },
+          isLoading: false,
+        });
       } else {
         set({ featuredProperties: [], isLoading: false });
       }
@@ -84,35 +117,22 @@ const usePropertyStore = create((set, get) => ({
       set({
         featuredProperties: fallbackDummyData,
         isLoading: false,
-        error: error.message
+        error: error.message,
       });
     }
   },
 
   fetchFavorites: async () => {
     set({ isLoading: true });
-
     try {
       const response = await apiClient.get('/api/favorites');
-
       if (response.data?.favorites) {
         const favorites = response.data.favorites;
-
-        // Extract IDs (normalized to strings)
-        const ids = favorites.map(fav =>
-          String(fav.propertyId?._id || fav.propertyId)
-        );
-
-        // Extract full property data if the backend populates propertyId
+        const ids = favorites.map(fav => String(fav.propertyId?._id || fav.propertyId));
         const propertiesData = favorites
           .filter(fav => fav.propertyId && typeof fav.propertyId === 'object')
           .map(fav => formatProperty(fav.propertyId));
-
-        set({
-          likedPropertyIds: ids,
-          likedPropertiesData: propertiesData,
-          isLoading: false
-        });
+        set({ likedPropertyIds: ids, likedPropertiesData: propertiesData, isLoading: false });
       } else {
         set({ isLoading: false });
       }
@@ -127,19 +147,15 @@ const usePropertyStore = create((set, get) => ({
     const isLiked = likedPropertyIds.includes(id);
 
     if (isLiked) {
-      // Remove from both ids and data
       set({
-        likedPropertyIds: likedPropertyIds.filter(existingId => existingId !== id),
+        likedPropertyIds:   likedPropertyIds.filter(existingId => existingId !== id),
         likedPropertiesData: likedPropertiesData.filter(p => p.id !== id),
       });
     } else {
-      // Add id, and also add full property data if we can find it in featuredProperties
       const propertyData = featuredProperties.find(p => p.id === id);
       set({
-        likedPropertyIds: [...likedPropertyIds, id],
-        likedPropertiesData: propertyData
-          ? [...likedPropertiesData, propertyData]
-          : likedPropertiesData,
+        likedPropertyIds:   [...likedPropertyIds, id],
+        likedPropertiesData: propertyData ? [...likedPropertiesData, propertyData] : likedPropertiesData,
       });
     }
 
@@ -150,7 +166,6 @@ const usePropertyStore = create((set, get) => ({
         await apiClient.post(`/api/favorites/${id}`);
       }
     } catch {
-      // Revert on failure
       set({ likedPropertyIds, likedPropertiesData });
     }
   },
@@ -158,23 +173,20 @@ const usePropertyStore = create((set, get) => ({
   fetchMyListings: async () => {
     try {
       const res = await apiClient.get('/api/properties/my-listings');
-
       if (res.data.success) {
         const formatted = res.data.data.map((prop) => ({
           _id: prop._id,
           title: prop.title,
           location: prop.location,
           price: prop.price,
-          images: prop.images || []
+          images: prop.images || [],
         }));
-
         set({ myListings: formatted });
       }
     } catch (err) {
       console.error("Failed to fetch my listings");
     }
-  }
-
+  },
 }));
 
 export default usePropertyStore;

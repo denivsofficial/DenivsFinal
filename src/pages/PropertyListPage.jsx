@@ -9,6 +9,8 @@ const PropertyListPage = () => {
     const mode = searchParams.get('mode');
     const searchQuery = searchParams.get('search');
     const propertyType = searchParams.get('propertyType');
+    const maxPrice = searchParams.get('maxPrice');
+    const status = searchParams.get('status');
 
     const {
         featuredProperties,
@@ -24,10 +26,10 @@ const PropertyListPage = () => {
         if (mode === 'liked') {
             fetchFavorites();
         } else {
-            fetchProperties({ search: searchQuery, propertyType: propertyType });
+            fetchProperties({ search: searchQuery, propertyType: propertyType, maxPrice: maxPrice, status: status });
         }
         // 🚀 FIX: Only run when the URL changes! Removed store functions.
-    }, [mode, searchQuery, propertyType]);
+    }, [mode, searchQuery, propertyType, maxPrice, status]);
 
     const displayData = mode === 'liked' ? likedPropertiesData : featuredProperties;
 

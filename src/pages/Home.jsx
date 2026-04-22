@@ -7,7 +7,7 @@ import PostPropertyBanner from '../ComponentPages/PostPropertyBanner';
 import FeaturedList from '@/ComponentPages/FeaturedList';
 import { Calculator } from 'lucide-react';
 import MoreProperty from '@/ComponentPages/MoreProperty';
-import Calculators from '@/ComponentPages/Calculator';
+import FinancialCalculator from '@/ComponentPages/Calculator';
 import BrowseByCategory from '@/ComponentPages/BrowseByCategory';
 import ExploreMoreProperties from '@/ComponentPages/ExploreMoreProperties';
 
@@ -21,7 +21,7 @@ const Home = () => {
         <div className="mt-[clamp(10px,8vw,90px)]">
           <FeaturedList/>
         </div>
-        <Calculators/>
+        <FinancialCalculator/>
         <BrowseByCategory/>
         <ExploreMoreProperties/>
         <PostPropertyBanner/>
