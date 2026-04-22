@@ -8,6 +8,8 @@ import PropertyDisplayPage from '../pages/PropertyDisplayPage';
 import PropertyListPage from '../pages/PropertyListPage';
 import ProfileSection from '@/ComponentPages/profile/ProfileSection';
 import PrivacyPolicy from "@/ComponentPages/PrivacyPolicy";
+import TermsConditions from "@/ComponentPages/leagalPages/TermsConditions";
+import MasterDisclaimer from "@/ComponentPages/leagalPages/MasterDisclaimer";
 
 
 const AppRoutes = () => {
@@ -15,11 +17,14 @@ const AppRoutes = () => {
     <Routes>
       {/* 🟢 PUBLIC ROUTES */}
       <Route path="/" element={<Home />} />
-      <Route path="/about" element={<AboutUs />} />
-      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
       <Route path="/properties" element={<PropertyListPage />} />
+      <Route path="/about" element={<AboutUs />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsConditions />} />
+      <Route path="/disclaimer" element={<MasterDisclaimer />} />
+
       {/* 🔴 PROTECTED ROUTES (Requires User to be Logged In) */}
       <Route path="/post-property" element={<PostProperty />} />
       <Route path="/profile" element={<ProfileSection />} />
