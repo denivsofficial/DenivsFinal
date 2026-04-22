@@ -68,8 +68,8 @@ export default function Navbar() {
             className="font-black text-[28px] tracking-[0.04em] leading-none flex items-center"
             style={{ fontFamily: '"Times New Roman", Times, serif' }}
           >
-            <span className="text-[#0A1F44]">DEN</span>
-            <span className="text-[#2F6BFF]">IVS</span>
+            <span className="text-[#0A1F44]">DE</span>
+            <span className="text-[#2F6BFF]">NIVS</span>
           </button>
 
           {/* ── Desktop right ── */}
