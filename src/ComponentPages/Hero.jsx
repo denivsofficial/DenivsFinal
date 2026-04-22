@@ -29,13 +29,10 @@ const Hero = () => {
     navigate(`/properties?${params.toString()}`);
   };
 
-  // 🚀 NEW: Dummy location fetcher for the new UI button
   const handleGetLocation = () => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          // For now, just visually indicate we got the location. 
-          // Later, you can use a Geocoding API to convert lat/lng to a city name!
           setSearchInput("Current Location");
         },
         (error) => {
@@ -72,15 +69,25 @@ const Hero = () => {
       <div className='relative z-20 -mt-16 md:-mt-24 px-4 md:px-10 max-w-5xl mx-auto'>
         <div className='bg-white/90 backdrop-blur-md p-4 md:p-6 rounded-2xl shadow-xl border border-white/40'>
           
-          <Tabs value={activeTab} onValueChange={setActiveTab} className='w-full'>
-            {/* 🚀 FIX: Modified spacing (gap-1 sm:gap-4), added justify-between for mobile, and reduced padding/text-size slightly on mobile (px-3, text-[13px]) so "Commercial" fits perfectly */}
-            <TabsList className='w-full flex flex-nowrap overflow-x-auto no-scrollbar justify-between sm:justify-center gap-1 sm:gap-4 bg-transparent mb-4 pb-1'>
-              <TabsTrigger value="buy" className='shrink-0 text-[13px] sm:text-sm md:text-base font-medium data-[state=active]:text-blue-950 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-3 sm:px-5 py-2 transition-all'>Buy</TabsTrigger>
-              <TabsTrigger value="rent" className='shrink-0 text-[13px] sm:text-sm md:text-base font-medium data-[state=active]:text-blue-950 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-3 sm:px-5 py-2 transition-all'>Rent</TabsTrigger>
-              <TabsTrigger value="pg" className='shrink-0 text-[13px] sm:text-sm md:text-base font-medium data-[state=active]:text-blue-950 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-3 sm:px-5 py-2 transition-all'>PG/Co-living</TabsTrigger>
-              <TabsTrigger value="commercial" className='shrink-0 text-[13px] sm:text-sm md:text-base font-medium data-[state=active]:text-blue-950 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-3 sm:px-5 py-2 transition-all'>Commercial</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {/* Centered Buy/Rent Tabs */}
+          <div className='flex justify-center mb-6'>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className='w-auto'>
+              <TabsList className='flex bg-slate-100/50 p-1 rounded-xl'>
+                <TabsTrigger 
+                  value="buy" 
+                  className='px-8 py-2 text-sm md:text-base font-bold rounded-lg transition-all data-[state=active]:bg-white data-[state=active]:text-blue-950 data-[state=active]:shadow-sm'
+                >
+                  Buy
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="rent" 
+                  className='px-8 py-2 text-sm md:text-base font-bold rounded-lg transition-all data-[state=active]:bg-white data-[state=active]:text-blue-950 data-[state=active]:shadow-sm'
+                >
+                  Rent
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
           {/* Form wrapper */}
           <form onSubmit={handleSearchSubmit}>
