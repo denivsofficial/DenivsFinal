@@ -51,13 +51,13 @@ const Hero = () => {
     <div className='w-full bg-slate-50'>
 
       {/* ── Hero Section ── */}
-      <div className='relative w-full aspect-[9/16] max-h-[50vh] overflow-hidden bg-black'>
+      <div className='relative w-full aspect-9/16 max-h-[50vh] overflow-hidden bg-black'>
         <img
           src={HomepageBannerURL}
           className='w-full h-full object-cover opacity-90'
           alt="Find your perfect property"
         />
-        <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none' />
+        <div className='absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent pointer-events-none' />
         <div className='absolute z-10 bottom-32 left-4 right-4 md:bottom-40 md:left-10 md:right-auto md:w-[60%]'>
           <h1 className='text-3xl sm:text-5xl md:text-6xl text-shadow-blue-900 font-bold leading-tight drop-shadow-md text-white'>
             Find Your Perfect Property
@@ -99,7 +99,7 @@ const Hero = () => {
               </button>
 
               {/* Vertical Divider */}
-              <div className="w-[1px] h-6 bg-slate-200 mx-1 shrink-0"></div>
+              <div className="w-px h-6 bg-slate-200 mx-1 shrink-0"></div>
 
               {/* Input Field */}
               <input
@@ -122,28 +122,28 @@ const Hero = () => {
             {/* ── Category Filters ── */}
             <div className='flex items-start sm:justify-center gap-6 md:gap-10 overflow-x-auto no-scrollbar px-2 pb-2'>
               
-              <div onClick={() => handleCategorySelect('House,Land')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-[70px] shrink-0'>
+              <div onClick={() => handleCategorySelect('House,Land')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-17.5 shrink-0'>
                 <div className={`w-12 h-12 flex justify-center items-center rounded-xl transition shadow-sm ${selectedCategory === 'House,Land' ? 'bg-[#001A33] text-white' : 'bg-blue-50 text-blue-950 group-hover:bg-blue-100'}`}>
                   <HomeIcon className='w-6 h-6' />
                 </div>
                 <span className={`text-[11px] md:text-xs font-bold transition ${selectedCategory === 'House,Land' ? 'text-[#001A33]' : 'text-slate-500 group-hover:text-blue-950'}`}>Residential</span>
               </div>
 
-              <div onClick={() => handleCategorySelect('Apartment')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-[70px] shrink-0'>
+              <div onClick={() => handleCategorySelect('Apartment')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-17.5 shrink-0'>
                 <div className={`w-12 h-12 flex justify-center items-center rounded-xl transition shadow-sm ${selectedCategory === 'Apartment' ? 'bg-[#001A33] text-white' : 'bg-blue-50 text-blue-950 group-hover:bg-blue-100'}`}>
                   <Building2 className='w-6 h-6' />
                 </div>
                 <span className={`text-[11px] md:text-xs font-bold transition ${selectedCategory === 'Apartment' ? 'text-[#001A33]' : 'text-slate-500 group-hover:text-blue-950'}`}>Apartments</span>
               </div>
 
-              <div onClick={() => handleCategorySelect('Office,Shop')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-[70px] shrink-0'>
+              <div onClick={() => handleCategorySelect('Office,Shop')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-17.5 shrink-0'>
                 <div className={`w-12 h-12 flex justify-center items-center rounded-xl transition shadow-sm ${selectedCategory === 'Office,Shop' ? 'bg-[#001A33] text-white' : 'bg-blue-50 text-blue-950 group-hover:bg-blue-100'}`}>
                   <Briefcase className='w-6 h-6' />
                 </div>
                 <span className={`text-[11px] md:text-xs font-bold transition ${selectedCategory === 'Office,Shop' ? 'text-[#001A33]' : 'text-slate-500 group-hover:text-blue-950'}`}>Commercial</span>
               </div>
 
-              <div onClick={() => handleCategorySelect('PG')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-[70px] shrink-0'>
+              <div onClick={() => handleCategorySelect('PG')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-17.5 shrink-0'>
                 <div className={`w-12 h-12 flex justify-center items-center rounded-xl transition shadow-sm ${selectedCategory === 'PG' ? 'bg-[#001A33] text-white' : 'bg-blue-50 text-blue-950 group-hover:bg-blue-100'}`}>
                   <Users className='w-6 h-6' />
                 </div>

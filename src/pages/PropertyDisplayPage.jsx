@@ -112,12 +112,12 @@ const PropertyDisplayPage = () => {
 
   return (
     // 🚀 FIX: Adjusted top padding (pt-[60px]) and removed mt-6 to eliminate the gap
-    <div className="min-h-screen bg-slate-50 pt-[10px] md:pt-[72px] pb-10 lg:pb-12 px-4 md:px-10 relative">
+    <div className="min-h-screen bg-slate-50 pt-2.5 md:pt-18 pb-10 lg:pb-12 px-4 md:px-10 relative">
       <div className="max-w-6xl mx-auto">
         
         {/* --- MOBILE STICKY TOP NAV --- */}
         {/* 🚀 FIX: top-[60px] assumes your main navbar is ~60px tall. It will now sit flush against it. */}
-        <div className="sticky top-[60px] z-40 bg-white/95 backdrop-blur-md py-3 flex justify-between items-center lg:hidden -mx-4 px-4 mb-6 border-b border-slate-200">
+        <div className="sticky top-15 z-40 bg-white/95 backdrop-blur-md py-3 flex justify-between items-center lg:hidden -mx-4 px-4 mb-6 border-b border-slate-200">
           <button onClick={() => navigate(-1)} className="p-2 bg-slate-50 rounded-full shadow-sm border border-slate-200 text-slate-700 transition active:scale-95">
             <ArrowLeft size={20} />
           </button>
@@ -135,9 +135,9 @@ const PropertyDisplayPage = () => {
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:gap-8">
           
           {/* IMAGE SECTION (Order 1 on Mobile) */}
-          <div className="order-1 lg:order-none lg:col-span-2">
+          <div className="order-1 lg:order-0 lg:col-span-2">
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-              <div className="h-[300px] md:h-[500px] w-full rounded-xl overflow-hidden mb-4 bg-slate-100">
+              <div className="h-75 md:h-125 w-full rounded-xl overflow-hidden mb-4 bg-slate-100">
                 <img src={mainImage} alt="Property" className="w-full h-full object-contain md:object-cover" />
               </div>
               
@@ -171,7 +171,7 @@ const PropertyDisplayPage = () => {
           </div>
 
           {/* SALE CARD (Order 2 on Mobile, sits below Image) */}
-          <div className="order-2 lg:order-none space-y-6">
+          <div className="order-2 lg:order-0 space-y-6">
             <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 lg:sticky lg:top-24">
               
               <div className="mb-6">
@@ -212,7 +212,7 @@ const PropertyDisplayPage = () => {
           </div>
 
           {/* OVERVIEW SECTION (Order 3 on Mobile, sits below Sale Card) */}
-          <div className="order-3 lg:order-none lg:col-span-2">
+          <div className="order-3 lg:order-0 lg:col-span-2">
             <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Property Overview</h2>
               <p className="text-slate-600 leading-relaxed">
@@ -244,7 +244,7 @@ const PropertyDisplayPage = () => {
       {/* --- MOBILE STICKY BOTTOM NAV --- */}
       {/* 🚀 FIX: Uses transform to slide down completely out of view when the footer is reached */}
       <div 
-        className={`fixed left-0 right-0 bg-white p-3 border-t border-slate-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] flex gap-3 z-40 lg:hidden transition-all duration-300 ease-in-out ${isBottomVisible ? 'bottom-[-100px] opacity-0 pointer-events-none' : 'bottom-0 opacity-100'}`}
+        className={`fixed left-0 right-0 bg-white p-3 border-t border-slate-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] flex gap-3 z-40 lg:hidden transition-all duration-300 ease-in-out ${isBottomVisible ? '-bottom-25 opacity-0 pointer-events-none' : 'bottom-0 opacity-100'}`}
       >
         <button onClick={handleNativeShare} className="flex-1 flex items-center justify-center gap-2 bg-slate-100 text-slate-700 font-bold rounded-xl py-3.5 transition active:scale-95">
           <Share2 size={18} /> Share

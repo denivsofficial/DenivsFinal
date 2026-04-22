@@ -10,7 +10,11 @@ import ProfileSection from '@/ComponentPages/profile/ProfileSection';
 import PrivacyPolicy from "@/ComponentPages/PrivacyPolicy";
 import TermsConditions from "@/ComponentPages/leagalPages/TermsConditions";
 import MasterDisclaimer from "@/ComponentPages/leagalPages/MasterDisclaimer";
-
+import NoBrokerageDeclaration from "@/ComponentPages/leagalPages/NoBrokerageDeclaration"; 
+import ReraDisclaimer from "@/ComponentPages/leagalPages/ReraDisclaimer";
+import RefundPolicy from "@/ComponentPages/leagalPages/RefundPolicy";
+import CookiePolicy from "@/ComponentPages/leagalPages/CookiePolicy";
+import ListingPolicy from "@/ComponentPages/leagalPages/ListingPolicy";
 
 const AppRoutes = () => {
   return (
@@ -24,6 +28,11 @@ const AppRoutes = () => {
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsConditions />} />
       <Route path="/disclaimer" element={<MasterDisclaimer />} />
+      <Route path="/no-brokerage" element={<NoBrokerageDeclaration />} />
+      <Route path="/rera-disclaimer" element={<ReraDisclaimer />} />
+      <Route path="/refund-policy" element={<RefundPolicy />} />
+      <Route path="/cookie-policy" element={<CookiePolicy />} />
+      <Route path="/listing-policy" element={<ListingPolicy />} />
 
       {/* 🔴 PROTECTED ROUTES (Requires User to be Logged In) */}
       <Route path="/post-property" element={<PostProperty />} />
