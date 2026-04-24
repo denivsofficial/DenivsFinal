@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -14,6 +14,8 @@ const loginSchema = z.object({
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || '/';
   const { login, loginWithGoogle, isLoading, error } = useAuthStore();
 
   const {
@@ -29,14 +31,14 @@ const Login = () => {
     const res = await login(data.identifier, data.password);
     
     if (res.success) {
-      navigate('/'); // Redirect to the homepage on successful login
+      navigate(from, { replace: true });
     }
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
     const res = await loginWithGoogle(credentialResponse.credential);
     if (res.success) {
-      navigate('/');
+      navigate(from, { replace: true });
     }
   };
 

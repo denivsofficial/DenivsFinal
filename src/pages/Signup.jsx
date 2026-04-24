@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom'; // 👈 IMPORTED LINK
+import { useNavigate, Link, useLocation } from 'react-router-dom'; // 👈 IMPORTED LINK
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import useAuthStore from '../store/useAuthStore';
 import { GoogleLogin } from '@react-oauth/google';
+import { fr } from 'zod/locales';
 
 // --- Zod Schemas based on your Mongoose Model ---
 const initiateSchema = z.object({
@@ -32,6 +33,8 @@ const completeSchema = z.object({
 
 const Signup = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || '/';
   const [step, setStep] = useState(1); 
   const [authType, setAuthType] = useState('email');
   const [authValue, setAuthValue] = useState('');
@@ -63,13 +66,13 @@ const Signup = () => {
 
   const onComplete = async (data) => {
     const res = await completeSignup(data.name, data.password, data.confirmPassword);
-    if (res.success) navigate('/'); 
+    if (res.success) navigate(from, { replace: true }); 
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
     const res = await loginWithGoogle(credentialResponse.credential);
     if (res.success) {
-      navigate('/');
+      navigate(from, { replace: true });
     }
   };
 

@@ -24,6 +24,7 @@ const useAuthStore = create((set, get) => ({
   user: null, 
   isAuthenticated: false,
   isLoading: false,
+  isCheckingAuth: true,
   error: null,
   tempUserId: null, 
 
@@ -129,9 +130,9 @@ const useAuthStore = create((set, get) => ({
   checkAuthSession: async () => {
     try {
       const response = await apiClient.get('/check-auth');
-      set({ user: response.data.data, isAuthenticated: true });
+      set({ user: response.data.data, isAuthenticated: true, isCheckingAuth: false });
     } catch (error) {
-      set({ user: null, isAuthenticated: false });
+      set({ user: null, isAuthenticated: false, isCheckingAuth: false });
     }
   },
 
