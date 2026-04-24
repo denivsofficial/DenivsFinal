@@ -1,4 +1,3 @@
-
 function formatPrice(value, currency) {
     if (!value) return '';
     if (value >= 10000000) return `${(value / 10000000).toFixed(1)} Cr`;
@@ -8,18 +7,27 @@ function formatPrice(value, currency) {
 
 export default async function handler(req, res) {
     const userAgent = req.headers['user-agent'] || '';
-    const isBot = /whatsapp|facebookexternalhit|twitterbot|linkedinbot|slackbot|telegrambot/i.test(userAgent);
+    const isBot = /whatsapp|facebookexternalhit|twitterbot|linkedinbot|slackbot|telegrambot|opengraph|og-preview|iframely|prerender|crawl|bot|spider/i.test(userAgent);
     const { id } = req.query;
 
     if (!isBot) {
-        // Real user — JS redirect to React app
+        // Real user — redirect to /index.html which is NOT caught by the /property/:id rewrite
+        // React Router will read the original URL and render the correct page
         res.setHeader('Content-Type', 'text/html');
         return res.send(`<!DOCTYPE html>
 <html>
   <head>
-    <script>window.location.replace('/property/${id}')</script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // Push the correct path so React Router renders /property/${id}
+      history.replaceState(null, '', '/property/${id}');
+    </script>
   </head>
-  <body></body>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/assets/index.js"></script>
+  </body>
 </html>`);
     }
 
@@ -36,7 +44,7 @@ export default async function handler(req, res) {
         const description = data.description
             ? data.description.slice(0, 150) + '...'
             : `${data.propertyType} for sale${city ? ` in ${city}` : ''}${price ? ` at ₹${price}` : ''}`;
-        const image = data.image || 'https://denivs.com/og-default.jpg'; // add a default image to /public
+        const image = data.image || 'https://denivs.com/og-default.jpg';
 
         res.setHeader('Content-Type', 'text/html');
         res.send(`<!DOCTYPE html>
@@ -67,7 +75,6 @@ export default async function handler(req, res) {
 </html>`);
 
     } catch (e) {
-        // Something went wrong — just send user to React app
-        res.redirect(302, `/property/${id}`);
+        res.redirect(302, '/');
     }
 }

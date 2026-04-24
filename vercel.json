@@ -5,7 +5,7 @@
       "destination": "/api/og-proxy?id=:id"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
