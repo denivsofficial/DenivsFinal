@@ -11,24 +11,12 @@ export default async function handler(req, res) {
     const { id } = req.query;
 
     if (!isBot) {
-        // Real user — redirect to /index.html which is NOT caught by the /property/:id rewrite
-        // React Router will read the original URL and render the correct page
+        // Real user — fetch the actual index.html Vercel built and serve it directly
+        // This avoids redirect loops and MIME type issues
+        const indexRes = await fetch('https://denivs.com/index.html');
+        const html = await indexRes.text();
         res.setHeader('Content-Type', 'text/html');
-        return res.send(`<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script>
-      // Push the correct path so React Router renders /property/${id}
-      history.replaceState(null, '', '/property/${id}');
-    </script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/assets/index.js"></script>
-  </body>
-</html>`);
+        return res.send(html);
     }
 
     try {
@@ -75,6 +63,10 @@ export default async function handler(req, res) {
 </html>`);
 
     } catch (e) {
-        res.redirect(302, '/');
+        // Backend failed — still serve index.html so user sees the app
+        const indexRes = await fetch('https://denivs.com/index.html');
+        const html = await indexRes.text();
+        res.setHeader('Content-Type', 'text/html');
+        return res.send(html);
     }
 }
