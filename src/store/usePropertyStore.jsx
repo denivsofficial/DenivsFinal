@@ -35,7 +35,6 @@ const formatProperty = (prop) => {
 };
 
 const usePropertyStore = create((set, get) => ({
-
   isLoading: false,
   error: null,
 
@@ -45,11 +44,15 @@ const usePropertyStore = create((set, get) => ({
   likedPropertyIds: [],
   likedPropertiesData: [],
   myListings: [],
+  
+  dashboardStats: { activeListings: 0, totalLeads: 0, newLeadsCount: 0 },
+  sellerLeads: [],
+  isDashboardLoading: false,
 
   setLoading: (status) => set({ isLoading: status }),
+  
   setFeaturedProperties: (propertiesFromBackend) =>
     set({ featuredProperties: propertiesFromBackend }),
-
 
   fetchProperties: async (filters = {}) => {
     set({ isLoading: true, error: null });
@@ -57,30 +60,24 @@ const usePropertyStore = create((set, get) => ({
     try {
       const queryParams = new URLSearchParams();
 
-      // Text / category filters
-      if (filters.search)           queryParams.append('search',           filters.search);
-      if (filters.city)             queryParams.append('city',             filters.city);
-      if (filters.propertyType)     queryParams.append('propertyType',     filters.propertyType);
-      if (filters.transactionType)  queryParams.append('transactionType',  filters.transactionType);
+      if (filters.search)            queryParams.append('search',            filters.search);
+      if (filters.city)              queryParams.append('city',              filters.city);
+      if (filters.propertyType)      queryParams.append('propertyType',      filters.propertyType);
+      if (filters.transactionType)   queryParams.append('transactionType',   filters.transactionType);
 
-      // Price range — both supported now
       if (filters.minPrice != null && filters.minPrice !== '')
         queryParams.append('minPrice', filters.minPrice);
       if (filters.maxPrice != null && filters.maxPrice !== '')
         queryParams.append('maxPrice', filters.maxPrice);
 
-      // Bedrooms
       if (filters.bedrooms != null && filters.bedrooms !== '')
         queryParams.append('bedrooms', filters.bedrooms);
 
-      // Status (default to Available if not specified)
       queryParams.append('status', filters.status || 'Available');
 
-      // Pagination
       if (filters.page)  queryParams.append('page',  filters.page);
       if (filters.limit) queryParams.append('limit', filters.limit);
 
-      // Geo search
       if (filters.lat && filters.lng && filters.radius) {
         queryParams.append('lat',    filters.lat);
         queryParams.append('lng',    filters.lng);
@@ -174,19 +171,69 @@ const usePropertyStore = create((set, get) => ({
     try {
       const res = await apiClient.get('/api/properties/my-listings');
       if (res.data.success) {
-        const formatted = res.data.data.map((prop) => ({
-          _id: prop._id,
-          title: prop.title,
-          location: prop.location,
-          price: prop.price,
-          images: prop.images || [],
-        }));
-        set({ myListings: formatted });
+        set({ myListings: res.data.data });
       }
     } catch (err) {
       console.error("Failed to fetch my listings");
     }
   },
+
+  fetchSellerDashboard: async () => {
+    set({ isDashboardLoading: true, error: null });
+    try {
+      const [statsRes, listingsRes, leadsRes] = await Promise.all([
+        apiClient.get('/leads/seller/stats'),
+        apiClient.get('/api/properties/my-listings'), 
+        apiClient.get('/leads/seller')
+      ]);
+
+      set({
+        dashboardStats: statsRes.data?.data || { activeListings: 0, totalLeads: 0, newLeadsCount: 0 },
+        myListings: listingsRes.data?.data || [],
+        sellerLeads: leadsRes.data?.data || [],
+        isDashboardLoading: false
+      });
+    } catch (error) {
+      set({ error: "Failed to load dashboard data.", isDashboardLoading: false });
+    }
+  },
+
+  deleteListing: async (propertyId) => {
+    try {
+      await apiClient.delete(`/api/properties/${propertyId}`);
+      
+      const { myListings, sellerLeads, dashboardStats } = get();
+      set({
+        myListings: myListings.filter(p => p._id !== propertyId),
+        sellerLeads: sellerLeads.filter(l => l.propertyId !== propertyId),
+        dashboardStats: {
+          ...dashboardStats,
+          activeListings: Math.max(0, dashboardStats.activeListings - 1)
+        }
+      });
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.message || "Failed to delete" };
+    }
+  },
+
+  updateLeadStatus: async (leadId, newStatus) => {
+    const { sellerLeads, dashboardStats } = get();
+    const previousLeads = [...sellerLeads];
+    
+    set({
+      sellerLeads: sellerLeads.map(lead => lead.id === leadId ? { ...lead, status: newStatus } : lead),
+      dashboardStats: newStatus !== 'new' 
+        ? { ...dashboardStats, newLeadsCount: Math.max(0, dashboardStats.newLeadsCount - 1) } 
+        : dashboardStats
+    });
+
+    try {
+      await apiClient.patch(`/leads/seller/${leadId}/status`, { status: newStatus });
+    } catch (error) {
+      set({ sellerLeads: previousLeads });
+    }
+  }
 }));
 
 export default usePropertyStore;

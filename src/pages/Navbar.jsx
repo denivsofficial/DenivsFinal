@@ -13,23 +13,19 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const drawerRef = useRef(null);
 
-  // Scroll-aware border
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 6);
     window.addEventListener('scroll', fn, { passive: true });
     return () => window.removeEventListener('scroll', fn);
   }, []);
 
-  // Close on route change
   useEffect(() => { setOpen(false); }, [location.pathname]);
 
-  // Lock body scroll while drawer open
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  // Close on outside tap
   useEffect(() => {
     if (!open) return;
     const handler = (e) => {
@@ -45,12 +41,10 @@ export default function Navbar() {
     window.location.href = '/';
   };
 
-  // user store has a single `name` field (e.g. "Prathmesh Jadhav")
   const fullName  = user?.name || 'Account';
   const firstName = fullName.split(' ')[0];
   const initial   = firstName[0]?.toUpperCase() ?? '?';
 
-  // Active route dot highlight
   const isActive = (path) => location.pathname === path;
 
   return (
@@ -62,7 +56,6 @@ export default function Navbar() {
       >
         <div className="w-full flex items-center justify-between px-5 md:px-10 h-14.5">
 
-          {/* Wordmark */}
           <button
             onClick={() => navigate('/')}
             className="font-black text-[28px] tracking-[0.04em] leading-none flex items-center"
@@ -76,7 +69,16 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-2">
             {isAuth ? (
               <>
-                {/* Saved */}
+                {(user?.role === 'seller' || user?.role === 'admin') && (
+                  <Link
+                    to="/seller-dashboard"
+                    className="h-9 px-5 rounded-full border-[1.5px] border-slate-200 text-[13px] font-bold text-[#555]
+                      inline-flex items-center
+                      hover:border-[#001A33] hover:text-[#001A33] transition-all"
+                  >
+                    Dashboard
+                  </Link>
+                )}
                 <Link
                   to="/properties?mode=liked"
                   className="h-9 px-5 rounded-full border-[1.5px] border-slate-200 text-[13px] font-bold text-[#555]
@@ -86,7 +88,6 @@ export default function Navbar() {
                   Saved
                 </Link>
 
-                {/* List property — electric lemon FREE tag */}
                 <button
                   onClick={() => navigate('/post-property')}
                   className="h-9 pl-5 pr-2 rounded-full bg-[#001A33] text-white text-[13px] font-bold
@@ -98,10 +99,8 @@ export default function Navbar() {
                   </span>
                 </button>
 
-                {/* Thin separator */}
                 <div className="w-px h-5 bg-[#E0DED8] mx-1" />
 
-                {/* Avatar pill */}
                 <button
                   onClick={() => navigate('/profile')}
                   className="h-9 pl-1.5 pr-4 rounded-full border-[1.5px] border-slate-200 flex items-center gap-2
@@ -117,15 +116,6 @@ export default function Navbar() {
                     </div>
                   )}
                   <span className="text-[13px] font-bold text-[#0D0D0D]">{firstName}</span>
-                </button>
-
-                {/* Logout — text only, minimal */}
-                <button
-                  onClick={handleLogout}
-                  className="h-9 px-4 rounded-full text-[13px] font-bold text-[#999]
-                    hover:text-[#001A33] hover:bg-slate-50 transition-all"
-                >
-                  Log out
                 </button>
               </>
             ) : (
@@ -191,7 +181,6 @@ export default function Navbar() {
           transition-transform duration-350 ease-[cubic-bezier(0.32,0.72,0,1)]
           ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
-        {/* Drawer header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-white/[.07]">
           <span
             className="text-white font-black text-[17px] tracking-[.06em]"
@@ -209,12 +198,10 @@ export default function Navbar() {
           </button>
         </div>
 
-        {/* Drawer body */}
         <div className="flex-1 flex flex-col overflow-y-auto">
 
           {isAuth ? (
             <>
-              {/* User row */}
               <button
                 onClick={() => { navigate('/profile'); setOpen(false); }}
                 className="flex items-center gap-3 px-6 py-4 border-b border-white/[.07] text-left hover:bg-white/4 active:bg-white/6 transition-colors"
@@ -241,10 +228,10 @@ export default function Navbar() {
                 </svg>
               </button>
 
-              {/* Nav links — dot style */}
               <nav className="flex-1 px-4 py-4 flex flex-col gap-0.5">
                 {[
                   { label: 'Home',              to: '/'                       },
+                  ...(user?.role === 'seller' || user?.role === 'admin' ? [{ label: 'Dashboard', to: '/seller-dashboard' }] : []),
                   { label: 'Saved properties',  to: '/properties?mode=liked'  },
                   { label: 'My listings',       to: '/my-listings'            },
                 ].map(({ label, to }) => (
@@ -267,9 +254,7 @@ export default function Navbar() {
                 ))}
               </nav>
 
-              {/* CTA card — electric lemon */}
               <div className="mx-4 mb-4 rounded-2xl bg-[#E8FF47] p-5 relative overflow-hidden">
-                {/* subtle geometric accent */}
                 <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full border-16 border-[#0D0D0D]/6" />
                 <p className="text-[9px] font-black tracking-[.12em] uppercase text-[#1A1A00]/60 mb-1">It's completely free</p>
                 <p
@@ -288,7 +273,6 @@ export default function Navbar() {
               </div>
             </>
           ) : (
-            /* Logged-out drawer */
             <>
               <div className="px-6 py-8 flex flex-col gap-3">
                 <p className="text-[11px] font-bold text-white/30 uppercase tracking-widest mb-2">Get started</p>
@@ -308,7 +292,6 @@ export default function Navbar() {
                 </button>
               </div>
 
-              {/* CTA card for logged-out */}
               <div className="mx-4 mb-4 rounded-2xl bg-[#E8FF47] p-5 relative overflow-hidden">
                 <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full border-16 border-[#0D0D0D]/6" />
                 <p className="text-[9px] font-black tracking-[.12em] uppercase text-[#1A1A00]/60 mb-1">It's completely free</p>
@@ -330,7 +313,6 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Logout footer */}
         {isAuth && (
           <div className="px-4 pb-6 border-t border-white/[.07] pt-4">
             <button
