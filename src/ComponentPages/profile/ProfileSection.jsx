@@ -1,331 +1,536 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import useAuthStore, { apiClient } from "../../store/useAuthStore";
-import usePropertyStore from "../../store/usePropertyStore";
-import { Pencil, Save, X } from "lucide-react";
+import { Pencil, Save, X, Camera, Phone, Mail, Shield, Crown, AlertTriangle, CheckCircle, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+// ─── Tiny reusable pieces ─────────────────────────────────────────────────────
+
+function SectionCard({ children, className = "" }) {
+  return (
+    <div className={`bg-white rounded-2xl border border-slate-100 overflow-hidden ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function SectionHeader({ title, action }) {
+  return (
+    <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+      <h2 className="text-[15px] font-bold text-slate-900 tracking-tight">{title}</h2>
+      {action}
+    </div>
+  );
+}
+
+function FieldRow({ label, children }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function ReadValue({ value, placeholder = "Not provided" }) {
+  return (
+    <p className="text-sm font-semibold text-slate-800">
+      {value || <span className="text-slate-400 font-normal">{placeholder}</span>}
+    </p>
+  );
+}
+
+function FieldInput({ name, value, onChange, type = "text", placeholder, className = "" }) {
+  return (
+    <input
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className={`w-full h-10 border border-slate-200 rounded-xl px-3.5 text-sm text-slate-800
+        bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#001A33]/15
+        focus:border-[#001A33] placeholder:text-slate-300 transition-all ${className}`}
+    />
+  );
+}
+
+function FieldSelect({ name, value, onChange, children }) {
+  return (
+    <select
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="w-full h-10 border border-slate-200 rounded-xl px-3.5 text-sm text-slate-800
+        bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#001A33]/15
+        focus:border-[#001A33] transition-all cursor-pointer"
+    >
+      {children}
+    </select>
+  );
+}
+
+function RoleBadge({ role }) {
+  const map = {
+    seller: { label: "Seller",    bg: "bg-blue-50",   text: "text-blue-700",   border: "border-blue-200"   },
+    buyer:  { label: "Buyer",     bg: "bg-slate-100", text: "text-slate-600",  border: "border-slate-200"  },
+    admin:  { label: "Admin",     bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+  };
+  const s = map[role] || map.buyer;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${s.bg} ${s.text} ${s.border}`}>
+      {s.label}
+    </span>
+  );
+}
+
+function PlanBadge({ plan }) {
+  const isPremium = plan && plan !== 'free';
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border
+      ${isPremium
+        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+      {isPremium ? <Crown size={9} strokeWidth={2.5} /> : <Shield size={9} strokeWidth={2} />}
+      {isPremium ? plan : 'Free'}
+    </span>
+  );
+}
+
+// ─── Avatar with upload overlay ───────────────────────────────────────────────
+
+function Avatar({ user, isEditing, onImageChange, previewUrl }) {
+  const fileRef = useRef(null);
+  const initials = (user?.name || "U")
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  return (
+    <div className="relative w-20 h-20 shrink-0">
+      {previewUrl || user?.avatar ? (
+        <img
+          src={previewUrl || user.avatar}
+          alt="Profile"
+          className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-md shadow-slate-900/10"
+        />
+      ) : (
+        <div className="w-20 h-20 rounded-full bg-[#001A33] flex items-center justify-center border-2 border-white shadow-md shadow-slate-900/10">
+          <span className="text-white text-xl font-black" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
+            {initials}
+          </span>
+        </div>
+      )}
+
+      {isEditing && (
+        <>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+          >
+            <Camera size={18} className="text-white" strokeWidth={2} />
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onImageChange}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Main ProfileSection ──────────────────────────────────────────────────────
+
 const ProfileSection = () => {
-  const navigate = useNavigate();
-
-  const currentUser = useAuthStore((state) => state.user);
-  const checkAuthSession = useAuthStore((state) => state.checkAuthSession);
-  const logout = useAuthStore((state) => state.logout);
-
-  const { myListings = [], fetchMyListings } = usePropertyStore();
-
-  const [isEditing, setIsEditing] = useState(false);
+  const navigate  = useNavigate();
+  const currentUser       = useAuthStore((s) => s.user);
+  const checkAuthSession  = useAuthStore((s) => s.checkAuthSession);
+  const logout            = useAuthStore((s) => s.logout);
+  const [isEditing,   setIsEditing]   = useState(false);
+  const [previewUrl,  setPreviewUrl]  = useState(null);
+  const [profileFile, setProfileFile] = useState(null);
 
   const [formData, setFormData] = useState({
-    name: "",
-    contactNumber: "",
-    sellerType: "Owner",
+    name: "", contactNumber: "", sellerType: "Owner",
   });
 
-  const [profileImage, setProfileImage] = useState(null);
-
   const [status, setStatus] = useState({
-    loading: false,
-    error: null,
-    success: false,
+    loading: false, error: null, success: false,
   });
 
   const [deleteState, setDeleteState] = useState({
-    password: "",
-    loading: false,
-    error: null,
+    password: "", loading: false, error: null, confirmOpen: false,
   });
 
   useEffect(() => {
     if (currentUser) {
       setFormData({
-        name: currentUser.name || "",
+        name:          currentUser.name          || "",
         contactNumber: currentUser.contactNumber || "",
-        sellerType: currentUser.sellerType || "Owner",
+        sellerType:    currentUser.sellerType    || "Owner",
       });
     }
   }, [currentUser]);
 
-  useEffect(() => {
-    if (currentUser?.role === "seller") {
-      fetchMyListings();
-    }
-  }, [currentUser, fetchMyListings]);
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = '/';
+  };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e) =>
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProfileFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleUpdate = async () => {
     setStatus({ loading: true, error: null, success: false });
-
     try {
-      const response = await apiClient.put("/api/profile/update", formData);
+      const payload = new FormData();
+      payload.append("name",          formData.name);
+      payload.append("contactNumber", formData.contactNumber);
+      payload.append("sellerType",    formData.sellerType);
+      if (profileFile) payload.append("avatar", profileFile);
 
-      if (response.data.success) {
+      const res = await apiClient.put("/api/profile/update", payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (res.data.success) {
         await checkAuthSession();
         setStatus({ loading: false, error: null, success: true });
         setIsEditing(false);
+        setTimeout(() => setStatus((s) => ({ ...s, success: false })), 3000);
       }
     } catch (err) {
       setStatus({
         loading: false,
-        error: err.response?.data?.message || "Update failed",
+        error: err.response?.data?.message || "Update failed. Please try again.",
         success: false,
       });
     }
   };
 
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setPreviewUrl(null);
+    setProfileFile(null);
+    setFormData({
+      name:          currentUser?.name          || "",
+      contactNumber: currentUser?.contactNumber || "",
+      sellerType:    currentUser?.sellerType    || "Owner",
+    });
+    setStatus({ loading: false, error: null, success: false });
+  };
+
   const handleDeleteAccount = async (e) => {
     e.preventDefault();
-
-    if (
-      !window.confirm(
-        "Are you absolutely sure? This will delete all your properties and cannot be undone."
-      )
-    )
-      return;
-
-    setDeleteState({ ...deleteState, loading: true, error: null });
-
+    setDeleteState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const response = await apiClient.delete("/api/profile/delete", {
+      const res = await apiClient.delete("/api/profile/delete", {
         data: { password: deleteState.password },
       });
-
-      if (response.data.success) {
+      if (res.data.success) {
         await logout();
         window.location.href = "/login";
       } else {
-        setDeleteState({
-          ...deleteState,
-          loading: false,
-          error: response.data.message || "Incorrect password",
-        });
+        setDeleteState((s) => ({
+          ...s, loading: false,
+          error: res.data.message || "Incorrect password.",
+        }));
       }
-    } catch (error) {
-      setDeleteState({
-        ...deleteState,
-        loading: false,
-        error: error.response?.data?.message || "Network error",
-      });
+    } catch (err) {
+      setDeleteState((s) => ({
+        ...s, loading: false,
+        error: err.response?.data?.message || "Network error. Please try again.",
+      }));
     }
   };
 
   if (!currentUser) {
     return (
-      <div className="text-center py-20 text-gray-500">
-        Loading profile...
+      <div className="flex items-center justify-center py-24">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#001A33] border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-400">Loading profile…</p>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Profile Card */}
-      <div className="bg-white rounded-2xl shadow-md p-6 border border-slate-200">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">My Profile</h2>
+  const isSeller = currentUser.role === "seller";
 
-          {!isEditing ? (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-1 text-sm bg-slate-900 text-white px-4 py-2 rounded-md"
-            >
-              <Pencil size={14} /> Edit
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={handleUpdate}
-                className="flex items-center gap-1 text-sm bg-green-600 text-white px-4 py-2 rounded-md"
-              >
-                <Save size={14} />
-                {status.loading ? "Saving..." : "Save"}
-              </button>
-              <button
-                onClick={() => setIsEditing(false)}
-                className="flex items-center gap-1 text-sm bg-gray-200 px-4 py-2 rounded-md"
-              >
-                <X size={14} /> Cancel
-              </button>
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+
+      {/* ══════════════════════════════════════════════════════
+          PROFILE CARD
+      ══════════════════════════════════════════════════════ */}
+      <SectionCard>
+        <SectionHeader
+          title="My profile"
+          action={
+            !isEditing ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full border border-red-200
+                    bg-red-50 text-[12px] font-bold text-red-600 hover:bg-red-100 hover:border-red-300 transition-all"
+                >
+                  <LogOut size={12} strokeWidth={2.5} /> Log out
+                </button>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-[#001A33]
+                    text-[12px] font-bold text-white hover:bg-[#13304c] transition-all"
+                >
+                  <Pencil size={12} strokeWidth={2.5} /> Edit
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCancelEdit}
+                  className="inline-flex items-center gap-1 h-8 px-3 rounded-full border border-slate-200
+                    text-[12px] font-semibold text-slate-500 hover:bg-slate-50 transition-all"
+                >
+                  <X size={12} strokeWidth={2.5} /> Cancel
+                </button>
+                <button
+                  onClick={handleUpdate}
+                  disabled={status.loading}
+                  className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full bg-[#001A33]
+                    text-[12px] font-bold text-white hover:bg-[#13304c] transition-all disabled:opacity-60"
+                >
+                  {status.loading
+                    ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving…</>
+                    : <><Save size={12} strokeWidth={2.5} /> Save</>
+                  }
+                </button>
+              </div>
+            )
+          }
+        />
+
+        <div className="p-5">
+          {/* ── Avatar + name row ── */}
+          <div className="flex items-center gap-4 mb-6">
+            <Avatar
+              user={currentUser}
+              isEditing={isEditing}
+              onImageChange={handleImageChange}
+              previewUrl={previewUrl}
+            />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-black text-slate-900 truncate"
+                style={{ fontFamily: '"Times New Roman", Times, serif' }}>
+                {currentUser.name}
+              </h3>
+              <p className="text-xs text-slate-400 truncate mt-0.5">{currentUser.email}</p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <RoleBadge role={currentUser.role} />
+                <PlanBadge plan={currentUser.subscription?.plan} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Form fields ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <FieldRow label="Full name">
+              {isEditing ? (
+                <FieldInput name="name" value={formData.name} onChange={handleChange} placeholder="Your full name" />
+              ) : (
+                <ReadValue value={currentUser.name} />
+              )}
+            </FieldRow>
+
+            <FieldRow label="Email address">
+              <div className="flex items-center gap-2">
+                <Mail size={13} className="text-slate-400 shrink-0" strokeWidth={2} />
+                <ReadValue value={currentUser.email} />
+              </div>
+            </FieldRow>
+
+            <FieldRow label="Phone number">
+              {isEditing ? (
+                <div className="flex gap-2">
+                  <div className="h-10 px-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center text-xs text-slate-500 font-medium shrink-0">
+                    🇮🇳 +91
+                  </div>
+                  <FieldInput
+                    name="contactNumber"
+                    value={formData.contactNumber}
+                    onChange={handleChange}
+                    type="tel"
+                    placeholder="10-digit number"
+                  />
+                </div>
+              ) : currentUser.contactNumber ? (
+                <div className="flex items-center gap-2">
+                  <Phone size={13} className="text-slate-400 shrink-0" strokeWidth={2} />
+                  <p className="text-sm font-semibold text-slate-800">{currentUser.contactNumber}</p>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-amber-50 border border-amber-200">
+                  <Phone size={13} className="text-amber-500 shrink-0" strokeWidth={2} />
+                  <p className="text-xs text-amber-700 font-medium flex-1">
+                    No number added
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="text-[11px] font-bold text-amber-800 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    Add now
+                  </button>
+                </div>
+              )}
+            </FieldRow>
+
+            {isSeller && (
+              <FieldRow label="Listing as">
+                {isEditing ? (
+                  <FieldSelect name="sellerType" value={formData.sellerType} onChange={handleChange}>
+                    <option value="Owner">Owner — I own this property</option>
+                    <option value="Agent">Agent — Licensed broker</option>
+                    <option value="Builder">Builder — Developer / firm</option>
+                  </FieldSelect>
+                ) : (
+                  <ReadValue value={currentUser.sellerType} />
+                )}
+              </FieldRow>
+            )}
+          </div>
+
+          {/* ── Status messages ── */}
+          {status.success && (
+            <div className="mt-4 flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 font-medium">
+              <CheckCircle size={15} strokeWidth={2} />
+              Profile updated successfully.
+            </div>
+          )}
+          {status.error && (
+            <div className="mt-4 flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600 font-medium">
+              <AlertTriangle size={15} strokeWidth={2} />
+              {status.error}
             </div>
           )}
         </div>
+      </SectionCard>
 
-        {/* Profile Info */}
-        <div className="flex items-center gap-6 mb-8">
-          <div className="relative">
-            <img
-              src={
-                profileImage ||
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                  currentUser.name || "User"
-                )}`
-              }
-              alt="profile"
-              className="w-24 h-24 rounded-full object-cover border"
-            />
-
-            {isEditing && (
-              <input
-                type="file"
-                className="absolute inset-0 opacity-0 cursor-pointer"
-                onChange={(e) =>
-                  setProfileImage(URL.createObjectURL(e.target.files[0]))
-                }
-              />
-            )}
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold">{currentUser.name}</h3>
-            <p className="text-sm text-gray-500">{currentUser.email}</p>
-            <p className="text-xs text-gray-400 mt-1 capitalize">
-              {currentUser.role}
-            </p>
-          </div>
-        </div>
-
-        {/* Form */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="text-sm text-gray-600">Full Name</label>
-            {isEditing ? (
-              <input
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="mt-1 w-full border rounded-md p-2"
-              />
-            ) : (
-              <p className="mt-1 font-medium">{currentUser.name}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="text-sm text-gray-600">Phone</label>
-            {isEditing ? (
-              <input
-                name="contactNumber"
-                value={formData.contactNumber}
-                onChange={handleChange}
-                className="mt-1 w-full border rounded-md p-2"
-              />
-            ) : (
-              <p className="mt-1 font-medium">
-                {currentUser.contactNumber || "Not provided"}
-              </p>
-            )}
-          </div>
-
-          {currentUser.role === "seller" && (
-            <div>
-              <label className="text-sm text-gray-600">Seller Type</label>
-              {isEditing ? (
-                <select
-                  name="sellerType"
-                  value={formData.sellerType}
-                  onChange={handleChange}
-                  className="mt-1 w-full border rounded-md p-2"
+      {/* ══════════════════════════════════════════════════════
+          ACCOUNT INFO STRIP (plan + member since)
+      ══════════════════════════════════════════════════════ */}
+      <SectionCard>
+        <div className="px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Subscription</p>
+            <div className="flex items-center gap-2">
+              <PlanBadge plan={currentUser.subscription?.plan} />
+              {(!currentUser.subscription?.plan || currentUser.subscription?.plan === 'free') && (
+                <button
+                  onClick={() => navigate('/pricing')}
+                  className="text-[11px] font-bold text-[#001A33] hover:underline underline-offset-2"
                 >
-                  <option value="Owner">Owner</option>
-                  <option value="Agent">Agent</option>
-                  <option value="Builder">Builder</option>
-                </select>
-              ) : (
-                <p className="mt-1 font-medium">
-                  {currentUser.sellerType}
-                </p>
+                  Upgrade →
+                </button>
               )}
             </div>
-          )}
-
-          <div>
-            <label className="text-sm text-gray-600">Subscription</label>
-            <p className="mt-1 font-medium capitalize">
-              {currentUser.subscription?.plan || "free"}
-            </p>
           </div>
-        </div>
-
-        {status.success && (
-          <p className="text-green-600 mt-4 text-sm">
-            Profile updated successfully
-          </p>
-        )}
-        {status.error && (
-          <p className="text-red-600 mt-4 text-sm">{status.error}</p>
-        )}
-      </div>
-
-      {/* Listings */}
-      {currentUser.role === "seller" && (
-        <div className="bg-white rounded-2xl shadow-md p-6 border border-slate-200">
-          <h2 className="text-xl font-semibold mb-6">My Listings</h2>
-
-          {myListings.length === 0 ? (
-            <p className="text-gray-500">No properties listed yet.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {myListings.map((prop) => (
-                <div
-                  key={prop._id}
-                  onClick={() => navigate(`/property/${prop._id}`)}
-                  className="bg-white rounded-xl shadow cursor-pointer hover:shadow-md transition"
-                >
-                  <img
-                    src={prop.images?.[0] || "/fallback.jpg"}
-                    className="h-40 w-full object-cover rounded-t-xl"
-                  />
-                  <div className="p-3">
-                    <h3 className="font-bold">{prop.title}</h3>
-                    <p className="text-sm text-gray-500">
-                      {prop.location?.city}
-                    </p>
-                    <p className="font-bold mt-2">
-                      ₹ {prop.price?.value?.toLocaleString("en-IN")}
-                    </p>
-                  </div>
-                </div>
-              ))}
+          {currentUser.createdAt && (
+            <div className="flex flex-col gap-0.5 text-right">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Member since</p>
+              <p className="text-sm font-semibold text-slate-700">
+                {new Date(currentUser.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+              </p>
             </div>
           )}
         </div>
-      )}
+      </SectionCard>
 
-      {/* Danger Zone */}
-      <div className="bg-red-50 rounded-2xl p-6 border border-red-200">
-        <h3 className="text-lg font-semibold text-red-700 mb-2">
-          Danger Zone
-        </h3>
+      {/* ══════════════════════════════════════════════════════
+          DANGER ZONE
+      ══════════════════════════════════════════════════════ */}
+      <div className="rounded-2xl border border-red-200 bg-red-50/50 overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-red-100">
+          <AlertTriangle size={14} className="text-red-500 shrink-0" strokeWidth={2} />
+          <h2 className="text-[15px] font-bold text-red-700">Danger zone</h2>
+        </div>
 
-        <form onSubmit={handleDeleteAccount} className="flex flex-col gap-3">
-          <input
-            type="password"
-            value={deleteState.password}
-            onChange={(e) =>
-              setDeleteState({ ...deleteState, password: e.target.value })
-            }
-            placeholder="Enter password to confirm"
-            className="border border-red-300 p-2 rounded w-full max-w-md"
-            required
-          />
-
-          <button
-            type="submit"
-            disabled={deleteState.loading || !deleteState.password}
-            className="bg-red-600 text-white px-6 h-10 rounded w-fit"
-          >
-            {deleteState.loading ? "Deleting..." : "Delete Account"}
-          </button>
-        </form>
-
-        {deleteState.error && (
-          <p className="text-red-600 mt-2 text-sm">
-            {deleteState.error}
+        <div className="p-5">
+          <p className="text-xs text-red-600 mb-4 leading-relaxed">
+            Deleting your account is permanent and cannot be undone. All your properties, saved searches, and data will be removed immediately.
           </p>
-        )}
+
+          {!deleteState.confirmOpen ? (
+            <button
+              type="button"
+              onClick={() => setDeleteState((s) => ({ ...s, confirmOpen: true }))}
+              className="h-9 px-4 rounded-full border border-red-300 text-xs font-bold text-red-600
+                hover:bg-red-100 hover:border-red-400 transition-all"
+            >
+              Delete my account
+            </button>
+          ) : (
+            <form onSubmit={handleDeleteAccount} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-red-500 uppercase tracking-widest block mb-1.5">
+                  Confirm with your password
+                </label>
+                <input
+                  type="password"
+                  value={deleteState.password}
+                  onChange={(e) => setDeleteState((s) => ({ ...s, password: e.target.value }))}
+                  placeholder="Enter your password to confirm"
+                  required
+                  className="w-full sm:max-w-sm h-10 border border-red-200 rounded-xl px-3.5 text-sm
+                    bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-300
+                    focus:border-red-400 placeholder:text-slate-300 transition-all"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  disabled={deleteState.loading || !deleteState.password}
+                  className="h-9 px-4 rounded-full bg-red-600 text-white text-xs font-bold
+                    hover:bg-red-700 transition-all disabled:opacity-50"
+                >
+                  {deleteState.loading ? "Deleting…" : "Yes, delete my account"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteState((s) => ({ ...s, confirmOpen: false, password: "", error: null }))}
+                  className="h-9 px-4 rounded-full border border-slate-200 text-xs font-semibold
+                    text-slate-500 hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {deleteState.error && (
+                <p className="text-xs text-red-600 font-medium flex items-center gap-1.5">
+                  <AlertTriangle size={12} strokeWidth={2} />
+                  {deleteState.error}
+                </p>
+              )}
+            </form>
+          )}
+        </div>
       </div>
+
     </div>
   );
 };
