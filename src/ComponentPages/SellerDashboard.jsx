@@ -3,9 +3,11 @@ import {
   Building, Users, Phone, Trash2, Calendar, 
   MapPin, AlertCircle, CheckCircle2, Clock, ChevronDown, MessageSquare, Loader2
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // <-- Added import
 import usePropertyStore from '../store/usePropertyStore';
 
 export default function SellerDashboard() {
+  const navigate = useNavigate(); // <-- Added navigation hook
   const [activeTab, setActiveTab] = useState('listings');
   const [listingToDelete, setListingToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -112,9 +114,13 @@ export default function SellerDashboard() {
                   const imgUrl = property.images?.length > 0 ? property.images[0] : '/fallback.jpg';
 
                   return (
-                    <div key={property._id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col group">
+                    <div 
+                      key={property._id} 
+                      onClick={() => navigate(`/property/${property._id}`)} // <-- Added onClick to route
+                      className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col group cursor-pointer hover:shadow-md hover:border-slate-300 transition-all"
+                    >
                       <div className="relative h-48 overflow-hidden bg-slate-100">
-                        <img src={imgUrl} alt={property.title} className="w-full h-full object-cover" />
+                        <img src={imgUrl} alt={property.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-md text-xs font-bold shadow-sm">
                           {property.viewCount || 0} Views
                         </div>
@@ -123,7 +129,7 @@ export default function SellerDashboard() {
                         <h3 className="font-bold text-lg text-slate-900 line-clamp-1">{property.title}</h3>
                         <div className="flex items-center text-slate-500 text-sm mt-1 mb-3">
                           <MapPin size={14} className="mr-1 shrink-0" /> 
-                          <span className="truncate">{property.location?.address}, {property.location?.city}</span>
+                          <span className="truncate">{property.location?.address ? `${property.location.address}, ` : ''}{property.location?.city}</span>
                         </div>
                         <div className="text-xl font-extrabold text-[#001A33] mb-4">
                           {property.price?.currency === 'INR' ? '₹ ' : ''}{formattedPrice}
@@ -134,7 +140,10 @@ export default function SellerDashboard() {
                             <Users size={16} /> {property.leadsCount || 0} Leads
                           </span>
                           <button 
-                            onClick={() => setListingToDelete(property)}
+                            onClick={(e) => {
+                              e.stopPropagation(); // <-- Prevents the card click when deleting
+                              setListingToDelete(property);
+                            }}
                             className="flex items-center gap-1.5 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-md transition-colors"
                           >
                             <Trash2 size={16} /> Delete
