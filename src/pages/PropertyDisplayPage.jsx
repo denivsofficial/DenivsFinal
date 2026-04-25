@@ -191,7 +191,7 @@ function Gallery({ images }) {
         {/* Swipeable strip */}
         <div
           ref={containerRef}
-          className="relative aspect-[4/3] md:aspect-[16/9] bg-slate-100 overflow-hidden select-none"
+          className="relative aspect-4/3 md:aspect-video bg-slate-100 overflow-hidden select-none"
           style={{ cursor: dragging ? 'grabbing' : 'grab' }}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
@@ -278,7 +278,7 @@ function Gallery({ images }) {
       {/* Lightbox */}
       {lightbox && (
         <div
-          className="fixed inset-0 z-[100] bg-black/93 flex items-center justify-center select-none"
+          className="fixed inset-0 z-100 bg-black/93 flex items-center justify-center select-none"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
@@ -629,7 +629,7 @@ const PropertyDisplayPage = () => {
         >
           <ArrowLeft size={18} strokeWidth={2} />
         </button>
-        <p className="text-sm font-bold text-slate-800 truncate max-w-[180px]">{displayTitle}</p>
+        <p className="text-sm font-bold text-slate-800 truncate max-w-45">{displayTitle}</p>
         <div className="flex items-center gap-2">
           <button
             onClick={handleShare}
