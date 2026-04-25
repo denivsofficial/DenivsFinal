@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import useAuthStore, { apiClient } from "../../store/useAuthStore";
-import { Pencil, Save, X, Camera, Phone, Mail, Shield, Crown, AlertTriangle, CheckCircle, LogOut } from "lucide-react";
+import { Pencil, Save, X, Phone, Mail, Shield, Crown, AlertTriangle, CheckCircle, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-// ─── Tiny reusable pieces ─────────────────────────────────────────────────────
 
 function SectionCard({ children, className = "" }) {
   return (
@@ -98,10 +96,7 @@ function PlanBadge({ plan }) {
   );
 }
 
-// ─── Avatar with upload overlay ───────────────────────────────────────────────
-
-function Avatar({ user, isEditing, onImageChange, previewUrl }) {
-  const fileRef = useRef(null);
+function Avatar({ user }) {
   const initials = (user?.name || "U")
     .split(" ")
     .map((w) => w[0])
@@ -111,9 +106,9 @@ function Avatar({ user, isEditing, onImageChange, previewUrl }) {
 
   return (
     <div className="relative w-20 h-20 shrink-0">
-      {previewUrl || user?.avatar ? (
+      {user?.avatar ? (
         <img
-          src={previewUrl || user.avatar}
+          src={user.avatar}
           alt="Profile"
           className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-md shadow-slate-900/10"
         />
@@ -124,30 +119,9 @@ function Avatar({ user, isEditing, onImageChange, previewUrl }) {
           </span>
         </div>
       )}
-
-      {isEditing && (
-        <>
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-          >
-            <Camera size={18} className="text-white" strokeWidth={2} />
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={onImageChange}
-          />
-        </>
-      )}
     </div>
   );
 }
-
-// ─── Main ProfileSection ──────────────────────────────────────────────────────
 
 const ProfileSection = () => {
   const navigate  = useNavigate();
@@ -155,11 +129,9 @@ const ProfileSection = () => {
   const checkAuthSession  = useAuthStore((s) => s.checkAuthSession);
   const logout            = useAuthStore((s) => s.logout);
   const [isEditing,   setIsEditing]   = useState(false);
-  const [previewUrl,  setPreviewUrl]  = useState(null);
-  const [profileFile, setProfileFile] = useState(null);
 
   const [formData, setFormData] = useState({
-    name: "", contactNumber: "", sellerType: "Owner",
+    name: "", contactNumber: "", sellerType: "Owner", agentReraId: ""
   });
 
   const [status, setStatus] = useState({
@@ -176,6 +148,7 @@ const ProfileSection = () => {
         name:          currentUser.name          || "",
         contactNumber: currentUser.contactNumber || "",
         sellerType:    currentUser.sellerType    || "Owner",
+        agentReraId:   currentUser.agentReraId   || "",
       });
     }
   }, [currentUser]);
@@ -188,25 +161,22 @@ const ProfileSection = () => {
   const handleChange = (e) =>
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setProfileFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
-  };
-
   const handleUpdate = async () => {
+    if (formData.sellerType === "Agent" && !formData.agentReraId.trim()) {
+      setStatus({ loading: false, error: "Agent RERA ID is required.", success: false });
+      return;
+    }
+
     setStatus({ loading: true, error: null, success: false });
     try {
-      const payload = new FormData();
-      payload.append("name",          formData.name);
-      payload.append("contactNumber", formData.contactNumber);
-      payload.append("sellerType",    formData.sellerType);
-      if (profileFile) payload.append("avatar", profileFile);
+      const payload = {
+        name: formData.name,
+        contactNumber: formData.contactNumber,
+        sellerType: formData.sellerType,
+        ...(formData.sellerType === "Agent" && { agentReraId: formData.agentReraId.toUpperCase() })
+      };
 
-      const res = await apiClient.put("/api/profile/update", payload, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await apiClient.put("/api/profile/update", payload);
 
       if (res.data.success) {
         await checkAuthSession();
@@ -225,12 +195,11 @@ const ProfileSection = () => {
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setPreviewUrl(null);
-    setProfileFile(null);
     setFormData({
       name:          currentUser?.name          || "",
       contactNumber: currentUser?.contactNumber || "",
       sellerType:    currentUser?.sellerType    || "Owner",
+      agentReraId:   currentUser?.agentReraId   || "",
     });
     setStatus({ loading: false, error: null, success: false });
   };
@@ -275,9 +244,6 @@ const ProfileSection = () => {
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
 
-      {/* ══════════════════════════════════════════════════════
-          PROFILE CARD
-      ══════════════════════════════════════════════════════ */}
       <SectionCard>
         <SectionHeader
           title="My profile"
@@ -325,14 +291,8 @@ const ProfileSection = () => {
         />
 
         <div className="p-5">
-          {/* ── Avatar + name row ── */}
           <div className="flex items-center gap-4 mb-6">
-            <Avatar
-              user={currentUser}
-              isEditing={isEditing}
-              onImageChange={handleImageChange}
-              previewUrl={previewUrl}
-            />
+            <Avatar user={currentUser} />
             <div className="flex-1 min-w-0">
               <h3 className="text-base font-black text-slate-900 truncate"
                 style={{ fontFamily: '"Times New Roman", Times, serif' }}>
@@ -346,7 +306,6 @@ const ProfileSection = () => {
             </div>
           </div>
 
-          {/* ── Form fields ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <FieldRow label="Full name">
               {isEditing ? (
@@ -400,21 +359,38 @@ const ProfileSection = () => {
             </FieldRow>
 
             {isSeller && (
-              <FieldRow label="Listing as">
-                {isEditing ? (
-                  <FieldSelect name="sellerType" value={formData.sellerType} onChange={handleChange}>
-                    <option value="Owner">Owner — I own this property</option>
-                    <option value="Agent">Agent — Licensed broker</option>
-                    <option value="Builder">Builder — Developer / firm</option>
-                  </FieldSelect>
-                ) : (
-                  <ReadValue value={currentUser.sellerType} />
+              <>
+                <FieldRow label="Listing as">
+                  {isEditing ? (
+                    <FieldSelect name="sellerType" value={formData.sellerType} onChange={handleChange}>
+                      <option value="Owner">Owner — I own this property</option>
+                      <option value="Agent">Agent — Licensed broker</option>
+                      <option value="Builder">Builder — Developer / firm</option>
+                    </FieldSelect>
+                  ) : (
+                    <ReadValue value={currentUser.sellerType} />
+                  )}
+                </FieldRow>
+
+                {(formData.sellerType === "Agent" || (!isEditing && currentUser.sellerType === "Agent")) && (
+                  <FieldRow label="Agent RERA ID">
+                    {isEditing ? (
+                      <FieldInput 
+                        name="agentReraId" 
+                        value={formData.agentReraId} 
+                        onChange={(e) => setFormData(prev => ({ ...prev, agentReraId: e.target.value.toUpperCase() }))} 
+                        placeholder="e.g. A52100012345" 
+                        className="uppercase tracking-widest font-mono" 
+                      />
+                    ) : (
+                      <ReadValue value={currentUser.agentReraId} />
+                    )}
+                  </FieldRow>
                 )}
-              </FieldRow>
+              </>
             )}
           </div>
 
-          {/* ── Status messages ── */}
           {status.success && (
             <div className="mt-4 flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 font-medium">
               <CheckCircle size={15} strokeWidth={2} />
@@ -430,9 +406,6 @@ const ProfileSection = () => {
         </div>
       </SectionCard>
 
-      {/* ══════════════════════════════════════════════════════
-          ACCOUNT INFO STRIP (plan + member since)
-      ══════════════════════════════════════════════════════ */}
       <SectionCard>
         <div className="px-5 py-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col gap-0.5">
@@ -460,9 +433,6 @@ const ProfileSection = () => {
         </div>
       </SectionCard>
 
-      {/* ══════════════════════════════════════════════════════
-          DANGER ZONE
-      ══════════════════════════════════════════════════════ */}
       <div className="rounded-2xl border border-red-200 bg-red-50/50 overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 border-b border-red-100">
           <AlertTriangle size={14} className="text-red-500 shrink-0" strokeWidth={2} />
