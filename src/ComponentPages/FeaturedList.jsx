@@ -16,7 +16,7 @@ const FeaturedList = () => {
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+  }, [fetchProperties]);
 
   const skeletonCards = [1, 2, 3, 4];
 
@@ -49,6 +49,8 @@ const FeaturedList = () => {
             featuredProperties.map((item) => {
               const isLiked = likedPropertyIds.includes(item.id);
 
+              const isRent = item.tags?.includes('Rent') || item.tags?.includes('RENT');
+
               return (
                 <div 
                   key={item.id}
@@ -78,7 +80,12 @@ const FeaturedList = () => {
                   <div className="p-4">
                     <h3 className="font-bold text-lg">{item.title}</h3>
                     <p className="text-sm text-gray-500">{item.location}</p>
-                    <p className="font-bold mt-2">₹ {item.price}</p>
+                    <p className="font-bold mt-2 flex items-end gap-1">
+                      ₹ {item.price}
+                      {isRent && item.price !== 'Price on Request' && (
+                        <span className="text-xs font-semibold text-slate-500 mb-[2px]">/ month</span>
+                      )}
+                    </p>
                   </div>
                 </div>
               );

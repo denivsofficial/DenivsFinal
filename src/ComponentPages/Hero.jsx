@@ -26,6 +26,8 @@ const Hero = () => {
     const params = new URLSearchParams();
     if (searchInput.trim()) params.append('search', searchInput.trim());
     if (selectedCategory) params.append('propertyType', selectedCategory);
+    if (activeTab === 'buy') params.append('transactionType', 'Sale');
+    if (activeTab === 'rent') params.append('transactionType', 'Rent');
     navigate(`/properties?${params.toString()}`);
   };
 

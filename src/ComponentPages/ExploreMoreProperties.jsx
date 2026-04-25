@@ -16,7 +16,7 @@ const ExploreMoreProperties = () => {
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+  }, [fetchProperties]);
 
   const skeletonCards = [1, 2, 3, 4];
 
@@ -36,7 +36,6 @@ const ExploreMoreProperties = () => {
           
           {isLoading ? (
             skeletonCards.map((n) => (
-              
               <div key={n} className="shrink-0 w-[80vw] sm:w-72 md:w-full md:shrink bg-white rounded-3xl shadow-lg overflow-hidden h-80 animate-pulse snap-start md:snap-none"></div>
             ))
           ) : nonFeaturedProperties.length === 0 ? (
@@ -47,12 +46,13 @@ const ExploreMoreProperties = () => {
           ) : (
             nonFeaturedProperties.map((item) => {
               const isLiked = likedPropertyIds.includes(item.id);
+              
+              const isRent = item.tags?.includes('Rent') || item.tags?.includes('RENT');
 
               return (
                 <div 
                   key={item.id}
                   onClick={() => navigate(`/property/${item.id}`)}
-                  // Upgraded to shadow-lg, hover:shadow-xl, and rounded-3xl
                   className="shrink-0 w-[80vw] sm:w-72 md:w-full md:shrink bg-white rounded-3xl shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden group snap-start md:snap-none"
                 >
                   <div className="relative w-full h-56 overflow-hidden rounded-t-3xl bg-slate-200">
@@ -76,7 +76,6 @@ const ExploreMoreProperties = () => {
                     </button>
                   </div>
 
-                  {/* Card Content - Consistent p-4 padding */}
                   <div className="p-4">
                     <h3 className="font-bold text-lg text-slate-800 mb-1 group-hover:text-[#001A33] transition-colors line-clamp-1">
                       {item.title}
@@ -84,7 +83,13 @@ const ExploreMoreProperties = () => {
                     <p className="text-sm text-slate-500 line-clamp-2 mb-2">
                       {item.location}
                     </p>
-                    <p className="font-bold text-lg text-[#001A33]">₹ {item.price}</p>
+
+                    <p className="font-bold text-lg text-[#001A33] flex items-end gap-1">
+                      ₹ {item.price}
+                      {isRent && item.price !== 'Price on Request' && (
+                        <span className="text-xs font-semibold text-slate-500 mb-0.75">/ month</span>
+                      )}
+                    </p>
                   </div>
                 </div>
               );

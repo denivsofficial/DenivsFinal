@@ -12,18 +12,19 @@ import useAuthStore, { apiClient } from "../store/useAuthStore";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+// Replaced emojis with Lucide React components
 const SELLER_TYPES = [
-  { id: "Owner",   emoji: "👤", label: "Owner",   desc: "I own this property"     },
-  { id: "Agent",   emoji: "🤝", label: "Agent",   desc: "Licensed broker / agent" },
-  { id: "Builder", emoji: "🏗️", label: "Builder", desc: "Developer or firm"       },
+  { id: "Owner",   icon: User,      label: "Owner",   desc: "I own this property"     },
+  { id: "Agent",   icon: Handshake, label: "Agent",   desc: "Licensed broker / agent" },
+  { id: "Builder", icon: HardHat,   label: "Builder", desc: "Developer or firm"       },
 ];
 
 const PROPERTY_TYPES = [
-  { id: "Apartment", emoji: "🏢", label: "Apartment / Flat",    desc: "Flat in a multi-storey building", accent: "border-blue-400 bg-blue-50"    },
-  { id: "House",     emoji: "🏠", label: "Independent House",   desc: "Villa, bungalow or row house",    accent: "border-emerald-400 bg-emerald-50" },
-  { id: "Land",      emoji: "🗺️", label: "Land / Plot",         desc: "Open plot, NA plot or farmland",  accent: "border-amber-400 bg-amber-50"   },
-  { id: "Office",    emoji: "💼", label: "Office Space",         desc: "Commercial office or co-working", accent: "border-purple-400 bg-purple-50" },
-  { id: "Shop",      emoji: "🏪", label: "Shop / Showroom",      desc: "Retail unit, shop or godown",     accent: "border-rose-400 bg-rose-50"    },
+  { id: "Apartment", icon: Building,  label: "Apartment / Flat",    desc: "Flat in a multi-storey building", accent: "border-blue-400 bg-blue-50",     iconColor: "text-blue-500" },
+  { id: "House",     icon: Home,      label: "Independent House",   desc: "Villa, bungalow or row house",    accent: "border-emerald-400 bg-emerald-50", iconColor: "text-emerald-500" },
+  { id: "Land",      icon: MapPin,    label: "Land / Plot",         desc: "Open plot, NA plot or farmland",  accent: "border-amber-400 bg-amber-50",     iconColor: "text-amber-500" },
+  { id: "Office",    icon: Briefcase, label: "Office Space",        desc: "Commercial office or co-working", accent: "border-purple-400 bg-purple-50",   iconColor: "text-purple-500" },
+  { id: "Shop",      icon: Store,     label: "Shop / Showroom",     desc: "Retail unit, shop or godown",     accent: "border-rose-400 bg-rose-50",       iconColor: "text-rose-500" },
 ];
 
 const AMENITIES = [
@@ -55,7 +56,7 @@ function FieldError({ msg }) {
   if (!msg) return null;
   return (
     <p className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
-      <span>⚠</span> {msg}
+      <AlertTriangle size={12} /> {msg}
     </p>
   );
 }
@@ -116,7 +117,7 @@ function Toggle({ checked, onChange }) {
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${checked ? "bg-[#0A1628]" : "bg-slate-200"}`}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${checked ? "bg-[#0A1628]" : "bg-slate-200"}`}
     >
       <span
         className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${checked ? "translate-x-5" : ""}`}
@@ -132,6 +133,7 @@ export default function PostProperty() {
   const user = useAuthStore((s) => s.user);
 
   // Step 1+2 (merged)
+  const [transactionType, setTransactionType] = useState("Sale"); 
   const [sellerType,    setSellerType]    = useState("");
   const [agentReraId,   setAgentReraId]   = useState("");
   const [contactNumber, setContactNumber] = useState("");
@@ -162,13 +164,15 @@ export default function PostProperty() {
   const [amenities,   setAmenities]   = useState([]);
 
   // Step 4 — Pricing & Photos
-  const [price,        setPrice]        = useState("");
-  const [isNegotiable, setIsNegotiable] = useState(false);
-  const [isResale,     setIsResale]     = useState(null);
-  const [reraId,       setReraId]       = useState("");
-  const [propTitle,    setPropTitle]    = useState("");
-  const [description,  setDescription]  = useState("");
-  const [images,       setImages]       = useState([]);
+  const [price,           setPrice]           = useState("");
+  const [securityDeposit, setSecurityDeposit] = useState(""); 
+  const [maintenanceIncluded, setMaintenanceIncluded] = useState(false); 
+  const [isNegotiable,    setIsNegotiable]    = useState(false);
+  const [isResale,        setIsResale]        = useState(null);
+  const [reraId,          setReraId]          = useState("");
+  const [propTitle,       setPropTitle]       = useState("");
+  const [description,     setDescription]     = useState("");
+  const [images,          setImages]          = useState([]);
 
   // App state
   const [step,       setStep]       = useState(1);
@@ -188,6 +192,7 @@ export default function PostProperty() {
   const isResidential = propertyType === "Apartment" || propertyType === "House";
   const isLand        = propertyType === "Land";
   const isCommercial  = propertyType === "Office" || propertyType === "Shop";
+  const isRent        = transactionType === "Rent";
 
   // ── Validation ───────────────────────────────────────────────────────────────
   const validate = (forStep) => {
@@ -212,9 +217,13 @@ export default function PostProperty() {
       if (isCommercial && !commArea) e.commArea  = "Please enter carpet area.";
     }
     if (forStep === 4) {
-      if (!price)             e.price    = "Please enter the expected price.";
-      if (isResale === null)  e.isResale = "Please indicate if this is a resale property.";
-      if (isResale === false && !reraId.trim()) e.reraId = "Project RERA ID is required for new properties.";
+      if (!price) {
+        e.price = isRent ? "Please enter monthly rent." : "Please enter the expected price.";
+      }
+      if (!isRent) {
+        if (isResale === null)  e.isResale = "Please indicate if this is a resale property.";
+        if (isResale === false && !reraId.trim()) e.reraId = "Project RERA ID is required for new properties.";
+      }
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -224,13 +233,12 @@ export default function PostProperty() {
   const handleNext = async () => {
     if (!validate(step)) return;
 
-    // Step 1 → POST /api/properties  (lead is captured here)
     if (step === 1) {
       setIsLoading(true);
       try {
         const res = await apiClient.post("/api/properties", {
           propertyType,
-          transactionType: "Sale",
+          transactionType, 
           contactNumber,
           sellerType,
           ...(sellerType === "Agent" && { agentReraId }),
@@ -254,7 +262,7 @@ export default function PostProperty() {
 
   const handleBack = () => { setErrors({}); setStep((s) => s - 1); };
 
-  // ── Final submit → PUT /api/properties/:id ───────────────────────────────────
+  // ── Final submit ───────────────────────────────────
   const handleSubmit = async () => {
     if (!validate(4)) return;
     if (!propertyId) { toast.error("Draft not found. Please restart."); return; }
@@ -284,13 +292,23 @@ export default function PostProperty() {
         }));
       }
 
-      fd.append("price", JSON.stringify({ value: parseInt(price), currency: "INR", isNegotiable }));
+      const priceObj = { value: parseInt(price), currency: "INR", isNegotiable };
+      if (isRent) {
+        if (securityDeposit) priceObj.securityDeposit = parseInt(securityDeposit);
+        priceObj.maintenanceIncluded = maintenanceIncluded;
+      }
+      fd.append("price", JSON.stringify(priceObj));
+
       if (propTitle)        fd.append("title",            propTitle);
       if (description)      fd.append("description",      description);
       if (project)          fd.append("project",          project);
       if (amenities.length) fd.append("amenities",        JSON.stringify(amenities));
-      fd.append("isResaleProperty", String(isResale));
-      if (isResale === false && reraId) fd.append("reraId", reraId.toUpperCase());
+      
+      if (!isRent) {
+        fd.append("isResaleProperty", String(isResale));
+        if (isResale === false && reraId) fd.append("reraId", reraId.toUpperCase());
+      }
+      
       fd.append("formStep",   "4");
       fd.append("formStatus", "published");
       images.forEach((img) => fd.append("images", img.file));
@@ -380,17 +398,37 @@ export default function PostProperty() {
 
           {/* ═══════════════════════════════════════════════════
               STEP 1 — Who are you + What are you listing
-              One screen, two sections. API fires on Continue.
-              Lead is captured: contactNumber, sellerType,
-              agentReraId (if Agent), propertyType.
-              Backend: upgrades role buyer→seller, saves contact.
           ═══════════════════════════════════════════════════ */}
           {step === 1 && (
             <div className="p-6">
-              <h2 className="text-2xl font-bold text-slate-900 mb-1">List your property</h2>
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-2xl font-bold text-slate-900">List your property</h2>
+              </div>
               <p className="text-sm text-slate-400 mb-6">
                 Fill in the details below. We'll save a draft the moment you continue.
               </p>
+
+              {/* Transaction Type Toggle (Sell / Rent) */}
+              <div className="bg-slate-100 p-1.5 rounded-xl flex items-center mb-8">
+                <button
+                  type="button"
+                  onClick={() => setTransactionType("Sale")}
+                  className={`flex-1 h-10 rounded-lg text-sm font-bold transition-all duration-200 ${
+                    transactionType === "Sale" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Sell
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTransactionType("Rent")}
+                  className={`flex-1 h-10 rounded-lg text-sm font-bold transition-all duration-200 ${
+                    transactionType === "Rent" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Rent
+                </button>
+              </div>
 
               {/* User profile chip */}
               <div className="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
@@ -458,7 +496,7 @@ export default function PostProperty() {
 
               {/* Seller type */}
               <div className="grid grid-cols-3 gap-3 mb-1">
-                {SELLER_TYPES.map(({ id, emoji, label, desc }) => (
+                {SELLER_TYPES.map(({ id, icon: Icon, label, desc }) => (
                   <button
                     key={id}
                     type="button"
@@ -468,7 +506,9 @@ export default function PostProperty() {
                         ? "border-[#0A1628] bg-[#0A1628]/5 shadow-sm"
                         : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}
                   >
-                    <span className="text-2xl leading-none">{emoji}</span>
+                    <div className={`mb-1 transition-colors ${sellerType === id ? "text-[#0A1628]" : "text-slate-400"}`}>
+                      <Icon size={24} strokeWidth={1.5} />
+                    </div>
                     <div>
                       <p className={`text-[13px] font-semibold ${sellerType === id ? "text-[#0A1628]" : "text-slate-700"}`}>{label}</p>
                       <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">{desc}</p>
@@ -501,7 +541,7 @@ export default function PostProperty() {
 
               {/* Property type grid */}
               <div className="grid grid-cols-2 gap-3 mb-1">
-                {PROPERTY_TYPES.map(({ id, emoji, label, desc, accent }) => (
+                {PROPERTY_TYPES.map(({ id, icon: Icon, label, desc, accent, iconColor }) => (
                   <button
                     key={id}
                     type="button"
@@ -511,7 +551,9 @@ export default function PostProperty() {
                         ? `${accent} shadow-sm`
                         : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}
                   >
-                    <span className="text-2xl shrink-0 leading-none">{emoji}</span>
+                    <div className={`shrink-0 transition-colors ${propertyType === id ? iconColor : "text-slate-400"}`}>
+                      <Icon size={24} strokeWidth={1.5} />
+                    </div>
                     <div className="min-w-0">
                       <p className="text-[13px] font-semibold text-slate-800 truncate">{label}</p>
                       <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">{desc}</p>
@@ -520,12 +562,6 @@ export default function PostProperty() {
                 ))}
               </div>
               <FieldError msg={errors.propertyType} />
-
-              <div className="mt-4">
-                <Callout type="info">
-                  We save a draft the moment you click Continue — even if you leave, your progress is safe.
-                </Callout>
-              </div>
 
               <div className="mt-6">
                 <button
@@ -605,7 +641,7 @@ export default function PostProperty() {
             <div className="p-6 space-y-4">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-1">Tell us about it</h2>
-                <p className="text-sm text-slate-400">More detail = more serious buyers.</p>
+                <p className="text-sm text-slate-400">More detail = more serious {isRent ? 'renters' : 'buyers'}.</p>
               </div>
 
               {/* Residential */}
@@ -765,76 +801,102 @@ export default function PostProperty() {
 
           {/* ═══════════════════════════════════════════════════
               STEP 4 — Pricing, RERA, Photos
-              API: PUT /api/properties/:id  (final publish)
           ═══════════════════════════════════════════════════ */}
           {step === 4 && (
             <div className="p-6 space-y-4">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-1">Set price & photos</h2>
-                <p className="text-sm text-slate-400">Almost there — price it right and add photos.</p>
+                <p className="text-sm text-slate-400">Almost there — {isRent ? 'set the rent' : 'price it right'} and add photos.</p>
               </div>
 
-              {/* Price */}
-              <div>
-                <FieldLabel required>Expected price</FieldLabel>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-3 text-slate-500 font-semibold text-sm pointer-events-none">₹</span>
-                  <InputBase type="number" placeholder="4500000" value={price} onChange={(e) => setPrice(e.target.value)} className="pl-7" />
+              {/* Price / Rent */}
+              <div className={isRent ? "grid grid-cols-2 gap-3" : ""}>
+                <div>
+                  <FieldLabel required>{isRent ? "Monthly Rent" : "Expected price"}</FieldLabel>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-3 text-slate-500 font-semibold text-sm pointer-events-none">₹</span>
+                    <InputBase type="number" placeholder={isRent ? "20000" : "4500000"} value={price} onChange={(e) => setPrice(e.target.value)} className="pl-7" />
+                  </div>
+                  {!isRent && price && (
+                    <div className="mt-2 px-3.5 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-sm flex items-center gap-2">
+                      <span className="font-bold text-amber-800">{formatINR(price)}</span>
+                      <span className="text-amber-600 text-xs">(₹{parseInt(price || 0).toLocaleString("en-IN")})</span>
+                    </div>
+                  )}
+                  <FieldError msg={errors.price} />
                 </div>
-                {price && (
-                  <div className="mt-2 px-3.5 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-sm flex items-center gap-2">
-                    <span className="font-bold text-amber-800">{formatINR(price)}</span>
-                    <span className="text-amber-600 text-xs">(₹{parseInt(price || 0).toLocaleString("en-IN")})</span>
+
+                {isRent && (
+                  <div>
+                    <FieldLabel>Security Deposit</FieldLabel>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-3 text-slate-500 font-semibold text-sm pointer-events-none">₹</span>
+                      <InputBase type="number" placeholder="50000" value={securityDeposit} onChange={(e) => setSecurityDeposit(e.target.value)} className="pl-7" />
+                    </div>
                   </div>
                 )}
-                <FieldError msg={errors.price} />
               </div>
 
-              {/* Negotiable */}
-              <div className="flex items-center justify-between p-4 border border-slate-100 rounded-2xl bg-slate-50">
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">Price is negotiable</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Allow buyers to make offers below asking price</p>
-                </div>
-                <Toggle checked={isNegotiable} onChange={setIsNegotiable} />
-              </div>
-
-              {/* Resale */}
-              <Divider label="Property age" />
-              <div>
-                <FieldLabel required>Is this a resale property?</FieldLabel>
-                <div className="flex gap-2">
-                  {[
-                    { val: true,  label: "Yes, resale",                 cls: "bg-emerald-50 border-emerald-400 text-emerald-700" },
-                    { val: false, label: "No, new / under construction", cls: "bg-blue-50 border-blue-400 text-blue-700" },
-                  ].map(({ val, label, cls }) => (
-                    <button key={String(val)} type="button" onClick={() => setIsResale(val)}
-                      className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all
-                        ${isResale === val ? cls : "border-slate-200 text-slate-500 hover:border-slate-300"}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <FieldError msg={errors.isResale} />
-              </div>
-
-              {/* Project RERA — mirrors backend pre-validate hook */}
-              {isResale === false && (
-                <div className="space-y-3">
-                  <Callout type="warning">
-                    New properties require a project RERA ID before the listing goes live. Check MahaRERA for your project's ID.
-                  </Callout>
+              {/* Negotiable & Maintenance */}
+              <div className="space-y-2 mt-4">
+                <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl bg-slate-50">
                   <div>
-                    <FieldLabel required>Project RERA ID</FieldLabel>
-                    <InputBase
-                      placeholder="e.g. P52100047378"
-                      value={reraId}
-                      onChange={(e) => setReraId(e.target.value.toUpperCase())}
-                      className="uppercase tracking-widest font-mono"
-                    />
-                    <FieldError msg={errors.reraId} />
+                    <p className="text-sm font-semibold text-slate-700">Price is negotiable</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Allow {isRent ? 'renters' : 'buyers'} to make offers</p>
                   </div>
+                  <Toggle checked={isNegotiable} onChange={setIsNegotiable} />
                 </div>
+                
+                {isRent && (
+                  <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl bg-slate-50">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700">Maintenance included</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Rent includes society maintenance fees</p>
+                    </div>
+                    <Toggle checked={maintenanceIncluded} onChange={setMaintenanceIncluded} />
+                  </div>
+                )}
+              </div>
+
+              {/* Resale / RERA - ONLY SHOW IF SELLING */}
+              {!isRent && (
+                <>
+                  <Divider label="Property age" />
+                  <div>
+                    <FieldLabel required>Is this a resale property?</FieldLabel>
+                    <div className="flex gap-2">
+                      {[
+                        { val: true,  label: "Yes, resale",                cls: "bg-emerald-50 border-emerald-400 text-emerald-700" },
+                        { val: false, label: "No, new / under construction", cls: "bg-blue-50 border-blue-400 text-blue-700" },
+                      ].map(({ val, label, cls }) => (
+                        <button key={String(val)} type="button" onClick={() => setIsResale(val)}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all
+                            ${isResale === val ? cls : "border-slate-200 text-slate-500 hover:border-slate-300"}`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <FieldError msg={errors.isResale} />
+                  </div>
+
+                  {isResale === false && (
+                    <div className="space-y-3 mt-4">
+                      <Callout type="warning">
+                        New properties require a project RERA ID before the listing goes live. Check MahaRERA for your project's ID.
+                      </Callout>
+                      <div>
+                        <FieldLabel required>Project RERA ID</FieldLabel>
+                        <InputBase
+                          placeholder="e.g. P52100047378"
+                          value={reraId}
+                          onChange={(e) => setReraId(e.target.value.toUpperCase())}
+                          className="uppercase tracking-widest font-mono"
+                        />
+                        <FieldError msg={errors.reraId} />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Title + description */}
@@ -905,9 +967,9 @@ export default function PostProperty() {
                 You'll get a notification once it's live.
               </p>
               <div className="flex gap-3 w-full max-w-xs">
-                <button onClick={() => navigate("/my-listings")}
+                <button onClick={() => navigate("/seller-dashboard")}
                   className="flex-1 h-11 bg-[#0A1628] text-white rounded-xl text-sm font-semibold hover:bg-[#1B3A5C] transition-all shadow-lg shadow-slate-900/10">
-                  My listings
+                  Dashboard
                 </button>
                 <button onClick={() => navigate("/")}
                   className="flex-1 h-11 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all">
@@ -942,9 +1004,9 @@ export default function PostProperty() {
         {step < 5 && (
           <p className="text-center text-xs text-slate-400 mt-5 pb-4">
             DENIV Services ·{" "}
-            <a href="#" className="hover:text-slate-600 underline underline-offset-2">Terms</a>
+            <Link to="/terms" className="hover:text-slate-600 underline underline-offset-2">Terms</Link>
             {" · "}
-            <a href="#" className="hover:text-slate-600 underline underline-offset-2">Privacy</a>
+            <Link to="/privacy-policy" className="hover:text-slate-600 underline underline-offset-2">Privacy</Link>
           </p>
         )}
       </div>

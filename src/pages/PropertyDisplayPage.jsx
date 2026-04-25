@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Bed, Bath, Maximize, ArrowLeft, Phone, CheckCircle, Building, Heart, Share2, X } from 'lucide-react';
+import { MapPin, Bed, Bath, Maximize, ArrowLeft, Phone, CheckCircle, Building, Heart, Share2, X, Wallet, Wrench } from 'lucide-react';
 import { apiClient } from '../store/useAuthStore'; 
 import usePropertyStore from '../store/usePropertyStore';
 
@@ -20,7 +20,7 @@ const PropertyDisplayPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mainImage, setMainImage] = useState('');
-  const [isBottomVisible, setIsBottomVisible] = useState(false); // 🚀 NEW: Tracks if user hit the footer
+  const [isBottomVisible, setIsBottomVisible] = useState(false);
 
   // --- MODAL STATE ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -58,14 +58,12 @@ const PropertyDisplayPage = () => {
     fetchFavorites(); 
   }, [id, fetchFavorites]);
 
-  // 🚀 NEW: Intersection Observer to hide the bottom nav when reaching the footer
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // If the dummy div at the bottom is visible, hide the sticky bar
         setIsBottomVisible(entry.isIntersecting);
       },
-      { threshold: 0.1 } // Triggers when 10% of the target is visible
+      { threshold: 0.1 }
     );
 
     const bottomTarget = document.getElementById('bottom-page-marker');
@@ -76,7 +74,7 @@ const PropertyDisplayPage = () => {
     return () => {
       if (bottomTarget) observer.unobserve(bottomTarget);
     };
-  }, [loading]); // Re-run when loading finishes so the div is in the DOM
+  }, [loading]);
 
   // --- HANDLERS ---
   const handleContactSubmit = (e) => {
@@ -110,13 +108,13 @@ const PropertyDisplayPage = () => {
   if (loading) return <div className="min-h-screen bg-slate-50 flex items-center justify-center font-bold text-slate-500">Loading property details...</div>;
   if (error || !property) return <div className="min-h-screen bg-slate-50 flex items-center justify-center font-bold text-red-500">{error}</div>;
 
+  const isRent = property.transactionType === 'Rent';
+
   return (
-    // 🚀 FIX: Adjusted top padding (pt-[60px]) and removed mt-6 to eliminate the gap
     <div className="min-h-screen bg-slate-50 pt-2.5 md:pt-18 pb-10 lg:pb-12 px-4 md:px-10 relative">
       <div className="max-w-6xl mx-auto">
         
         {/* --- MOBILE STICKY TOP NAV --- */}
-        {/* 🚀 FIX: top-[60px] assumes your main navbar is ~60px tall. It will now sit flush against it. */}
         <div className="sticky top-15 z-40 bg-white/95 backdrop-blur-md py-3 flex justify-between items-center lg:hidden -mx-4 px-4 mb-6 border-b border-slate-200">
           <button onClick={() => navigate(-1)} className="p-2 bg-slate-50 rounded-full shadow-sm border border-slate-200 text-slate-700 transition active:scale-95">
             <ArrowLeft size={20} />
@@ -134,7 +132,7 @@ const PropertyDisplayPage = () => {
         {/* --- MAIN CONTENT --- */}
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:gap-8">
           
-          {/* IMAGE SECTION (Order 1 on Mobile) */}
+          {/* IMAGE SECTION */}
           <div className="order-1 lg:order-0 lg:col-span-2">
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
               <div className="h-75 md:h-125 w-full rounded-xl overflow-hidden mb-4 bg-slate-100">
@@ -170,7 +168,7 @@ const PropertyDisplayPage = () => {
             </div>
           </div>
 
-          {/* SALE CARD (Order 2 on Mobile, sits below Image) */}
+          {/* SALE CARD */}
           <div className="order-2 lg:order-0 space-y-6">
             <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 lg:sticky lg:top-24">
               
@@ -188,8 +186,9 @@ const PropertyDisplayPage = () => {
                   {property.title || property.project || `${property.propertyType} in ${property.location?.city || ''}`}
                 </h1>
 
-                <h2 className="text-2xl font-bold text-blue-950 mt-2">
+                <h2 className="text-2xl font-bold text-blue-950 mt-2 flex items-end gap-1">
                   ₹ {property.price?.value?.toLocaleString('en-IN') || property.price?.toString() || 'Price on Request'}
+                  {isRent && property.price?.value && <span className="text-sm font-medium text-slate-500 mb-1">/ month</span>}
                 </h2>
                 
                 <p className="flex items-start gap-2 text-slate-500 mt-3 font-medium text-sm leading-tight">
@@ -203,6 +202,20 @@ const PropertyDisplayPage = () => {
                 <div className="flex flex-col gap-1"><div className="flex items-center gap-2 text-slate-500"><Bath size={18} /> <span className="text-xs font-bold uppercase tracking-wider">Bathrooms</span></div><span className="font-extrabold text-slate-900">{property.residentialDetails?.bathrooms || '2'}</span></div>
                 <div className="flex flex-col gap-1"><div className="flex items-center gap-2 text-slate-500"><Maximize size={18} /> <span className="text-xs font-bold uppercase tracking-wider">Carpet Area</span></div><span className="font-extrabold text-slate-900">{property.residentialDetails?.carpetArea ? `${property.residentialDetails.carpetArea} sqft` : 'N/A'}</span></div>
                 <div className="flex flex-col gap-1"><div className="flex items-center gap-2 text-slate-500"><Building size={18} /> <span className="text-xs font-bold uppercase tracking-wider">Floor</span></div><span className="font-extrabold text-slate-900">{property.residentialDetails?.floorNumber || property.floor || 'N/A'}</span></div>
+                
+                {/* Rental Specific Fields */}
+                {isRent && property.price?.securityDeposit && (
+                  <div className="flex flex-col gap-1 mt-2">
+                    <div className="flex items-center gap-2 text-slate-500"><Wallet size={18} /> <span className="text-xs font-bold uppercase tracking-wider">Deposit</span></div>
+                    <span className="font-extrabold text-slate-900">₹ {property.price.securityDeposit.toLocaleString('en-IN')}</span>
+                  </div>
+                )}
+                {isRent && (
+                  <div className="flex flex-col gap-1 mt-2">
+                    <div className="flex items-center gap-2 text-slate-500"><Wrench size={18} /> <span className="text-xs font-bold uppercase tracking-wider">Maintenance</span></div>
+                    <span className="font-extrabold text-slate-900">{property.price?.maintenanceIncluded ? 'Included' : 'Extra'}</span>
+                  </div>
+                )}
               </div>
 
               <button onClick={() => setIsModalOpen(true)} className="hidden lg:flex w-full h-12 bg-[#001A33] text-white rounded-xl font-bold hover:bg-[#13304c] transition justify-center items-center gap-2">
@@ -211,7 +224,7 @@ const PropertyDisplayPage = () => {
             </div>
           </div>
 
-          {/* OVERVIEW SECTION (Order 3 on Mobile, sits below Sale Card) */}
+          {/* OVERVIEW SECTION */}
           <div className="order-3 lg:order-0 lg:col-span-2">
             <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Property Overview</h2>
@@ -236,13 +249,11 @@ const PropertyDisplayPage = () => {
 
         </div>
 
-        {/* 🚀 NEW: Invisible marker for the Intersection Observer */}
         <div id="bottom-page-marker" className="h-1 w-full mt-4"></div>
 
       </div>
 
       {/* --- MOBILE STICKY BOTTOM NAV --- */}
-      {/* 🚀 FIX: Uses transform to slide down completely out of view when the footer is reached */}
       <div 
         className={`fixed left-0 right-0 bg-white p-3 border-t border-slate-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] flex gap-3 z-40 lg:hidden transition-all duration-300 ease-in-out ${isBottomVisible ? '-bottom-25 opacity-0 pointer-events-none' : 'bottom-0 opacity-100'}`}
       >
