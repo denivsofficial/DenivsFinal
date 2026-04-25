@@ -166,12 +166,14 @@ const TermsConditions = () => {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-4">21. Governing Law and Jurisdiction</h2>
             <p className="text-justify">
-              These Terms shall be governed by and construed in accordance with the laws of India. Subject to the arbitration clause, the courts at Chhatrapati Sambhajinagar, Maharashtra, shall have exclusive jurisdiction over all matters arising out of or in connection with these Terms and the use of the Platform.
+              These Terms shall be governed by and construed in accordance with the laws of India. 
+              Subject to the arbitration clause, the competent courts of India shall have jurisdiction 
+              over all matters arising out of or in connection with these Terms and the use of the Platform.
             </p>
             <div className="bg-gray-50 p-8 rounded-xl border border-gray-100 mt-8">
               <p className="font-bold text-gray-900">DENIVSERVICES (Proposed Entity under Incorporation in India)</p>
               <p>Brand Name: DENIVS</p>
-              <p>Jurisdiction: Chhatrapati Sambhajinagar, Maharashtra, India</p>
+              <p>Jurisdiction: India</p>
               <p>Official Contact: contact@denivs.com</p>
             </div>
           </section>

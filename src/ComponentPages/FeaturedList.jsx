@@ -83,7 +83,7 @@ const FeaturedList = () => {
                     <p className="font-bold mt-2 flex items-end gap-1">
                       ₹ {item.price}
                       {isRent && item.price !== 'Price on Request' && (
-                        <span className="text-xs font-semibold text-slate-500 mb-[2px]">/ month</span>
+                        <span className="text-xs font-semibold text-slate-500 mb-0.5">/ month</span>
                       )}
                     </p>
                   </div>
