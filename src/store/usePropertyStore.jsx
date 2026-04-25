@@ -233,7 +233,22 @@ const usePropertyStore = create((set, get) => ({
     } catch (error) {
       set({ sellerLeads: previousLeads });
     }
-  }
+  },
+
+  createLead: async (leadData) => {
+    try {
+      const response = await apiClient.post('/api/leads', leadData);
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      return { 
+        success: false, 
+        message: error.response?.data?.message || "Failed to submit inquiry. Please try again." 
+      };
+    }
+  },
+  
 }));
+
+
 
 export default usePropertyStore;
