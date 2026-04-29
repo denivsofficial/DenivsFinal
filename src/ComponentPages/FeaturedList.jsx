@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import { Heart } from 'lucide-react';
-import usePropertyStore from '../store/usePropertyStore'; 
-import { useNavigate } from 'react-router-dom'; 
+import usePropertyStore from '../store/usePropertyStore';
+import { useNavigate } from 'react-router-dom';
 
 const FeaturedList = () => {
-  const navigate = useNavigate(); 
-  
+  const navigate = useNavigate();
+
   const rawData = usePropertyStore((state) => state.featuredProperties);
   const isLoading = usePropertyStore((state) => state.isLoading);
   const fetchProperties = usePropertyStore((state) => state.fetchProperties);
@@ -15,19 +15,27 @@ const FeaturedList = () => {
   const properties = Array.isArray(rawData) ? rawData : rawData?.properties || [];
 
   useEffect(() => {
-    fetchProperties();
+    fetchProperties({ limit: 100 });
   }, [fetchProperties]);
+
+  // Log featured ranked properties
+  const allRanked = properties.map(p => ({ title: p.title, featuredRank: p.featuredRank }));
+  console.log('[FeaturedList] All properties with ranks:', allRanked);
 
   const skeletonCards = [1, 2, 3, 4];
 
+  // Show only properties with featuredRank > 0, sorted by rank ascending
   const featuredProperties = properties
     .filter((item) => item?.featuredRank > 0)
     .sort((a, b) => a.featuredRank - b.featuredRank);
 
+  console.log('[FeaturedList] Featured properties (rank > 0):', featuredProperties.map(p => ({ title: p.title, featuredRank: p.featuredRank })));
+
+
   return (
     <section className="pt-0 pb-4 px-4 md:px-10 bg-slate-50">
       <div className="max-w-7xl mx-auto">
-        
+
         <div className="mb-10 flex flex-col md:flex-row md:justify-between md:items-end gap-2">
           <div>
             <h2 className="text-3xl font-bold text-slate-900">Featured Listing</h2>
@@ -36,7 +44,7 @@ const FeaturedList = () => {
         </div>
 
         <div className="flex overflow-x-auto gap-6 pb-6 pt-2 no-scrollbar snap-x snap-mandatory scroll-smooth">
-          
+
           {isLoading ? (
             skeletonCards.map((n) => (
               <div key={n} className="min-w-75 bg-white rounded-3xl shadow-lg h-80 animate-pulse"></div>
@@ -52,7 +60,7 @@ const FeaturedList = () => {
               const isRent = item.tags?.includes('Rent') || item.tags?.includes('RENT');
 
               return (
-                <div 
+                <div
                   key={item.id}
                   onClick={() => navigate(`/property/${item.id}`)}
                   className="min-w-75 bg-white rounded-3xl shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer overflow-hidden"

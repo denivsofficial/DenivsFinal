@@ -4,17 +4,18 @@ import ProtectedRoutes from "./ProtectedRoutes";
 import Home from '../pages/Home';
 import Signup from '../pages/Signup';
 import Login from '../pages/Login';
+import ForgotPassword from '../pages/ForgotPassword';
 import PostProperty from '../pages/postProperty';
 import PropertyDisplayPage from '../pages/PropertyDisplayPage';
 import PropertyListPage from '../pages/PropertyListPage';
 import ProfileSection from '@/ComponentPages/profile/ProfileSection';
-import PrivacyPolicy from "@/ComponentPages/PrivacyPolicy";
+import AppPrivacy from "@/ComponentPages/AppPrivacy";
 import TermsConditions from "@/ComponentPages/leagalPages/TermsConditions";
 import MasterDisclaimer from "@/ComponentPages/leagalPages/MasterDisclaimer";
 import NoBrokerageDeclaration from "@/ComponentPages/leagalPages/NoBrokerageDeclaration"; 
 import ReraDisclaimer from "@/ComponentPages/leagalPages/ReraDisclaimer";
 import RefundPolicy from "@/ComponentPages/leagalPages/RefundPolicy";
-import CookiePolicy from "@/ComponentPages/leagalPages/CookiePolicy";
+import AppCookie from "@/ComponentPages/leagalPages/AppCookie";
 import ListingPolicy from "@/ComponentPages/leagalPages/ListingPolicy";
 import SellerDashboard from "@/ComponentPages/SellerDashboard";
 
@@ -25,15 +26,16 @@ const AppRoutes = () => {
       <Route path="/" element={<Home />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/properties" element={<PropertyListPage />} />
       <Route path="/about" element={<AboutUs />} />
-      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/privacy-policy" element={<AppPrivacy />} />
       <Route path="/terms" element={<TermsConditions />} />
       <Route path="/disclaimer" element={<MasterDisclaimer />} />
       <Route path="/no-brokerage" element={<NoBrokerageDeclaration />} />
       <Route path="/rera-disclaimer" element={<ReraDisclaimer />} />
       <Route path="/refund-policy" element={<RefundPolicy />} />
-      <Route path="/cookie-policy" element={<CookiePolicy />} />
+      <Route path="/cookie-policy" element={<AppCookie />} />
       <Route path="/listing-policy" element={<ListingPolicy />} />
       <Route path="/property/:id" element={<PropertyDisplayPage />} />
 

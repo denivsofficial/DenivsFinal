@@ -44,13 +44,13 @@ const usePropertyStore = create((set, get) => ({
   likedPropertyIds: [],
   likedPropertiesData: [],
   myListings: [],
-  
+
   dashboardStats: { activeListings: 0, totalLeads: 0, newLeadsCount: 0 },
   sellerLeads: [],
   isDashboardLoading: false,
 
   setLoading: (status) => set({ isLoading: status }),
-  
+
   setFeaturedProperties: (propertiesFromBackend) =>
     set({ featuredProperties: propertiesFromBackend }),
 
@@ -60,10 +60,10 @@ const usePropertyStore = create((set, get) => ({
     try {
       const queryParams = new URLSearchParams();
 
-      if (filters.search)            queryParams.append('search',            filters.search);
-      if (filters.city)              queryParams.append('city',              filters.city);
-      if (filters.propertyType)      queryParams.append('propertyType',      filters.propertyType);
-      if (filters.transactionType)   queryParams.append('transactionType',   filters.transactionType);
+      if (filters.search) queryParams.append('search', filters.search);
+      if (filters.city) queryParams.append('city', filters.city);
+      if (filters.propertyType) queryParams.append('propertyType', filters.propertyType);
+      if (filters.transactionType) queryParams.append('transactionType', filters.transactionType);
 
       if (filters.minPrice != null && filters.minPrice !== '')
         queryParams.append('minPrice', filters.minPrice);
@@ -75,12 +75,12 @@ const usePropertyStore = create((set, get) => ({
 
       queryParams.append('status', filters.status || 'Available');
 
-      if (filters.page)  queryParams.append('page',  filters.page);
+      if (filters.page) queryParams.append('page', filters.page);
       if (filters.limit) queryParams.append('limit', filters.limit);
 
       if (filters.lat && filters.lng && filters.radius) {
-        queryParams.append('lat',    filters.lat);
-        queryParams.append('lng',    filters.lng);
+        queryParams.append('lat', filters.lat);
+        queryParams.append('lng', filters.lng);
         queryParams.append('radius', filters.radius);
       }
 
@@ -89,10 +89,10 @@ const usePropertyStore = create((set, get) => ({
       const propertiesArray = Array.isArray(response.data?.data?.properties)
         ? response.data.data.properties
         : Array.isArray(response.data?.data)
-        ? response.data.data
-        : Array.isArray(response.data?.properties)
-        ? response.data.properties
-        : [];
+          ? response.data.data
+          : Array.isArray(response.data?.properties)
+            ? response.data.properties
+            : [];
 
       const paginationData = response.data?.data;
 
@@ -100,9 +100,9 @@ const usePropertyStore = create((set, get) => ({
         set({
           featuredProperties: propertiesArray.map(formatProperty),
           pagination: {
-            currentPage:      paginationData?.currentPage      ?? 1,
-            totalPages:       paginationData?.totalPages       ?? 1,
-            totalProperties:  paginationData?.totalProperties  ?? propertiesArray.length,
+            currentPage: paginationData?.currentPage ?? 1,
+            totalPages: paginationData?.totalPages ?? 1,
+            totalProperties: paginationData?.totalProperties ?? propertiesArray.length,
           },
           isLoading: false,
         });
@@ -145,13 +145,13 @@ const usePropertyStore = create((set, get) => ({
 
     if (isLiked) {
       set({
-        likedPropertyIds:   likedPropertyIds.filter(existingId => existingId !== id),
+        likedPropertyIds: likedPropertyIds.filter(existingId => existingId !== id),
         likedPropertiesData: likedPropertiesData.filter(p => p.id !== id),
       });
     } else {
       const propertyData = featuredProperties.find(p => p.id === id);
       set({
-        likedPropertyIds:   [...likedPropertyIds, id],
+        likedPropertyIds: [...likedPropertyIds, id],
         likedPropertiesData: propertyData ? [...likedPropertiesData, propertyData] : likedPropertiesData,
       });
     }
@@ -183,7 +183,7 @@ const usePropertyStore = create((set, get) => ({
     try {
       const [statsRes, listingsRes, leadsRes] = await Promise.all([
         apiClient.get('/leads/seller/stats'),
-        apiClient.get('/api/properties/my-listings'), 
+        apiClient.get('/api/properties/my-listings'),
         apiClient.get('/leads/seller')
       ]);
 
@@ -201,7 +201,7 @@ const usePropertyStore = create((set, get) => ({
   deleteListing: async (propertyId) => {
     try {
       await apiClient.delete(`/api/properties/${propertyId}`);
-      
+
       const { myListings, sellerLeads, dashboardStats } = get();
       set({
         myListings: myListings.filter(p => p._id !== propertyId),
@@ -220,11 +220,11 @@ const usePropertyStore = create((set, get) => ({
   updateLeadStatus: async (leadId, newStatus) => {
     const { sellerLeads, dashboardStats } = get();
     const previousLeads = [...sellerLeads];
-    
+
     set({
       sellerLeads: sellerLeads.map(lead => lead.id === leadId ? { ...lead, status: newStatus } : lead),
-      dashboardStats: newStatus !== 'new' 
-        ? { ...dashboardStats, newLeadsCount: Math.max(0, dashboardStats.newLeadsCount - 1) } 
+      dashboardStats: newStatus !== 'new'
+        ? { ...dashboardStats, newLeadsCount: Math.max(0, dashboardStats.newLeadsCount - 1) }
         : dashboardStats
     });
 
@@ -240,13 +240,13 @@ const usePropertyStore = create((set, get) => ({
       const response = await apiClient.post('/api/leads', leadData);
       return { success: true, message: response.data.message };
     } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || "Failed to submit inquiry. Please try again." 
+      return {
+        success: false,
+        message: error.response?.data?.message || "Failed to submit inquiry. Please try again."
       };
     }
   },
-  
+
 }));
 
 

@@ -181,8 +181,11 @@ function Gallery({ images }) {
     return () => window.removeEventListener('keydown', handler);
   }, [lightbox, prev, next]);
 
-  // Use ref width so each slide = exactly 1 container width
-  const translateX = `${-active * containerWidth + offset}px`;
+  // Use CSS percentages for slide sizing; pixels only for drag offset
+  const slidePercent = 100 / count;
+  const translateValue = offset !== 0
+    ? `calc(${-active * slidePercent}% + ${offset}px)`
+    : `${-active * slidePercent}%`;
   const transition = dragging || touchStartX.current !== null ? 'none' : 'transform 0.32s cubic-bezier(0.4,0,0.2,1)';
 
   return (
@@ -191,7 +194,7 @@ function Gallery({ images }) {
         {/* Swipeable strip */}
         <div
           ref={containerRef}
-          className="relative aspect-4/3 md:aspect-video bg-slate-100 overflow-hidden select-none"
+          className="relative aspect-4/3 md:aspect-video bg-slate-900 overflow-hidden select-none"
           style={{ cursor: dragging ? 'grabbing' : 'grab' }}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
@@ -201,25 +204,25 @@ function Gallery({ images }) {
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          {/* Slide strip — each slide is exactly containerWidth px wide */}
+          {/* Slide strip — uses CSS % so each slide = exactly 1 container width */}
           <div
             className="absolute top-0 left-0 h-full flex"
             style={{
-              transform: `translateX(${translateX})`,
+              transform: `translateX(${translateValue})`,
               transition,
-              width: `${count * (containerWidth || 100)}px`,
+              width: `${count * 100}%`,
             }}
           >
             {imgs.map((img, i) => (
               <div
                 key={i}
                 className="relative h-full flex-none"
-                style={{ width: `${containerWidth || 100}px` }}
+                style={{ width: `${slidePercent}%` }}
               >
                 <img
                   src={img}
                   alt={`Property photo ${i + 1}`}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-contain"
                   draggable={false}
                 />
               </div>
@@ -284,35 +287,39 @@ function Gallery({ images }) {
           onTouchEnd={onTouchEnd}
           onClick={() => setLightbox(false)}
         >
-          <button
-            className="absolute top-4 right-4 w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition"
-            onClick={() => setLightbox(false)}
-          >
-            <X size={20} />
-          </button>
-
           {/* Strip in lightbox */}
           <div
-            className="w-full flex items-center justify-center overflow-hidden"
-            style={{ height: '90vh' }}
+            className="w-full h-full overflow-hidden relative"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Close button - moved inside and given high z-index */}
+            <button
+              className="absolute top-6 right-6 w-12 h-12 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-50 shadow-lg"
+              onClick={() => setLightbox(false)}
+            >
+              <X size={24} strokeWidth={2.5} />
+            </button>
             <div
-              className="flex h-full"
+              className="flex h-full absolute top-0 left-0"
               style={{
-                transform: `translateX(calc(${-active * 100}vw + ${offset}px))`,
-                transition: touchStartX.current !== null ? 'none' : 'transform 0.32s cubic-bezier(0.4,0,0.2,1)',
                 width: `${count * 100}vw`,
+                transform: `translateX(calc(${-active * 100}vw + ${offset}px))`,
+                transition: touchStartX.current !== null ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
               }}
             >
               {imgs.map((img, i) => (
-                <div key={i} className="flex items-center justify-center" style={{ width: '100vw', height: '90vh', flexShrink: 0 }}>
-                  <img
-                    src={img}
-                    alt=""
-                    className="max-h-full max-w-[92vw] object-contain"
-                    draggable={false}
-                  />
+                <div
+                  key={i}
+                  className="w-[100vw] h-full flex items-center justify-center flex-shrink-0 p-4 md:p-12"
+                >
+                  <div className="w-full h-full md:aspect-video relative rounded-2xl overflow-hidden shadow-2xl bg-black/20">
+                    <img
+                      src={img}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-contain"
+                      draggable={false}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
