@@ -15,13 +15,14 @@ const ExploreMoreProperties = () => {
   const properties = Array.isArray(rawData) ? rawData : rawData?.properties || [];
 
   useEffect(() => {
-    fetchProperties();
+    fetchProperties({ limit: 100 });
   }, [fetchProperties]);
 
   const skeletonCards = [1, 2, 3, 4];
 
+  // Show only non-featured properties (featuredRank = 0 or not set)
   const nonFeaturedProperties = properties
-    .filter((item) => item?.featuredRank === 0 || item?.featuredRank === undefined);
+    .filter((item) => !item?.featuredRank || item.featuredRank === 0);
 
   return (
     <section className="py-8 px-4 md:px-10 bg-slate-50">

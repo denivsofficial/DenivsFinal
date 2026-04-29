@@ -1,6 +1,6 @@
 import React from 'react';
 
-const CookiePolicy = () => {
+const AppCookie = () => {
   const lastUpdated = "April 22, 2026";
 
   return (
@@ -131,4 +131,4 @@ const CookiePolicy = () => {
   );
 };
 
-export default CookiePolicy;
+export default AppCookie;

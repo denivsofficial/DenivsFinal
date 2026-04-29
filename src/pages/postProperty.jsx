@@ -6,7 +6,7 @@ import {
   Building, Home, MapPin, Briefcase, Store,
   UploadCloud, ChevronLeft, ChevronRight,
   CheckCircle2, X, User, Handshake, HardHat,
-  Phone, Lock,
+  Phone, Lock, AlertTriangle,
 } from "lucide-react";
 import useAuthStore, { apiClient } from "../store/useAuthStore";
 
@@ -173,6 +173,7 @@ export default function PostProperty() {
   const [propTitle,       setPropTitle]       = useState("");
   const [description,     setDescription]     = useState("");
   const [images,          setImages]          = useState([]);
+  const [coverIndex,      setCoverIndex]      = useState(0);
 
   // App state
   const [step,       setStep]       = useState(1);
@@ -311,7 +312,15 @@ export default function PostProperty() {
       
       fd.append("formStep",   "4");
       fd.append("formStatus", "published");
-      images.forEach((img) => fd.append("images", img.file));
+      // Reorder images so the selected cover is always first
+      const orderedImages = coverIndex > 0
+        ? [
+            images[coverIndex],
+            ...images.slice(0, coverIndex),
+            ...images.slice(coverIndex + 1),
+          ]
+        : images;
+      orderedImages.forEach((img) => fd.append("images", img.file));
 
       const res = await apiClient.put(`/api/properties/${propertyId}`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -332,7 +341,12 @@ export default function PostProperty() {
       r.readAsDataURL(file);
     });
   };
-  const removeImage    = (i) => setImages((prev) => prev.filter((_, idx) => idx !== i));
+  const removeImage = (i) => {
+    setImages((prev) => prev.filter((_, idx) => idx !== i));
+    // If we removed the cover, reset to first image
+    setCoverIndex((prev) => (i === prev ? 0 : i < prev ? prev - 1 : prev));
+  };
+  const setCover = (i) => setCoverIndex(i);
   const toggleAmenity  = (name) =>
     setAmenities((prev) => prev.includes(name) ? prev.filter((a) => a !== name) : [...prev, name]);
 
@@ -938,16 +952,41 @@ export default function PostProperty() {
               <input id="imgUpload" type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
 
               {images.length > 0 && (
-                <div className="grid grid-cols-4 gap-2.5">
-                  {images.map((img, i) => (
-                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 group">
-                      <img src={img.preview} alt="" className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => removeImage(i)}
-                        className="absolute top-1.5 right-1.5 w-5 h-5 bg-slate-900/70 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                        <X size={11} />
-                      </button>
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Click an image to set it as the <span className="text-[#0A1628] font-semibold">cover photo</span> (shown first on listings)
+                  </p>
+                  <div className="grid grid-cols-4 gap-2.5">
+                    {images.map((img, i) => (
+                      <div
+                        key={i}
+                        onClick={() => setCover(i)}
+                        className={`relative aspect-square rounded-xl overflow-hidden border-2 cursor-pointer transition-all group ${
+                          i === coverIndex
+                            ? 'border-[#0A1628] shadow-lg shadow-[#0A1628]/20'
+                            : 'border-slate-200 hover:border-slate-400'
+                        }`}
+                      >
+                        <img src={img.preview} alt="" className="w-full h-full object-cover" />
+
+                        {/* Cover badge */}
+                        {i === coverIndex && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-[#0A1628]/80 text-white text-[9px] font-bold text-center py-1 flex items-center justify-center gap-1">
+                            <span>★</span> COVER
+                          </div>
+                        )}
+
+                        {/* Remove button */}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeImage(i); }}
+                          className="absolute top-1.5 right-1.5 w-5 h-5 bg-slate-900/70 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
