@@ -18,6 +18,11 @@ import RefundPolicy from "@/ComponentPages/leagalPages/RefundPolicy";
 import AppCookie from "@/ComponentPages/leagalPages/AppCookie";
 import ListingPolicy from "@/ComponentPages/leagalPages/ListingPolicy";
 import SellerDashboard from "@/ComponentPages/SellerDashboard";
+import AdminLayout from "@/ComponentPages/Admin/AdminLayout";
+import PendingProperties from "@/ComponentPages/Admin/PendingProperties";
+import IncompleteLeads from "@/ComponentPages/Admin/IncompleteLeads";
+import VerifiedListings from "@/ComponentPages/Admin/VerifiedListings";
+import AllUsers from "@/ComponentPages/Admin/AllUsers";
 
 const AppRoutes = () => {
   return (
@@ -49,6 +54,18 @@ const AppRoutes = () => {
       {/* 🟡 STRICT ROLE PROTECTED ROUTES (Requires User AND Seller/Admin Role) */}
       <Route element={<ProtectedRoutes allowedRoles={['seller', 'admin']} />}>
         <Route path="/seller-dashboard" element={<SellerDashboard />} />
+      </Route>
+
+      {/* 🔵 ADMIN PROTECTED ROUTES (Requires Admin Role) */}
+      <Route element={<ProtectedRoutes allowedRoles={['admin']} />}>
+        <Route path="/admin" element={<AdminLayout />}>
+          {/* Default admin route loads pending properties */}
+          <Route index element={<PendingProperties />} />
+          <Route path="pending" element={<PendingProperties />} />
+          <Route path="leads" element={<IncompleteLeads />} />
+          <Route path="verified" element={<VerifiedListings />} />
+          <Route path="users" element={<AllUsers />} />
+        </Route>
       </Route>
       
       {/* ⚠️ 404 CATCH-ALL (If a user types a random URL) */}

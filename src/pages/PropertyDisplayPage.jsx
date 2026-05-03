@@ -90,7 +90,6 @@ function Gallery({ images }) {
   const imgs = images?.length ? images : [fallback];
   const count = imgs.length;
 
-  // Track container width for pixel-perfect slide positioning
   useEffect(() => {
     if (!containerRef.current) return;
     const ro = new ResizeObserver(([entry]) => {
@@ -108,7 +107,6 @@ function Gallery({ images }) {
   const prev = useCallback(() => goTo(active - 1), [active, goTo]);
   const next = useCallback(() => goTo(active + 1), [active, goTo]);
 
-  // ── Touch events ──
   const onTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX;
     setOffset(0);
@@ -116,7 +114,6 @@ function Gallery({ images }) {
   const onTouchMove = (e) => {
     if (touchStartX.current === null) return;
     const dx = e.touches[0].clientX - touchStartX.current;
-    // Resist at edges
     if ((active === 0 && dx > 0) || (active === count - 1 && dx < 0)) {
       setOffset(dx * 0.25);
     } else {
@@ -133,7 +130,6 @@ function Gallery({ images }) {
     touchStartX.current = null;
   };
 
-  // ── Mouse drag events ──
   const onMouseDown = (e) => {
     dragStartX.current = e.clientX;
     setDragging(true);
@@ -154,7 +150,7 @@ function Gallery({ images }) {
     if (Math.abs(dx) > 50) {
       dx < 0 ? next() : prev();
     } else if (Math.abs(dx) < 5) {
-      setLightbox(true); // tap to open lightbox
+      setLightbox(true);
     } else {
       setOffset(0);
     }
@@ -169,7 +165,6 @@ function Gallery({ images }) {
     }
   };
 
-  // ── Keyboard in lightbox ──
   useEffect(() => {
     if (!lightbox) return;
     const handler = (e) => {
@@ -181,7 +176,6 @@ function Gallery({ images }) {
     return () => window.removeEventListener('keydown', handler);
   }, [lightbox, prev, next]);
 
-  // Use CSS percentages for slide sizing; pixels only for drag offset
   const slidePercent = 100 / count;
   const translateValue = offset !== 0
     ? `calc(${-active * slidePercent}% + ${offset}px)`
@@ -191,66 +185,38 @@ function Gallery({ images }) {
   return (
     <>
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        {/* Swipeable strip */}
         <div
           ref={containerRef}
           className="relative aspect-4/3 md:aspect-video bg-slate-900 overflow-hidden select-none"
           style={{ cursor: dragging ? 'grabbing' : 'grab' }}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseLeave}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
+          onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseLeave}
+          onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
         >
-          {/* Slide strip — uses CSS % so each slide = exactly 1 container width */}
           <div
             className="absolute top-0 left-0 h-full flex"
-            style={{
-              transform: `translateX(${translateValue})`,
-              transition,
-              width: `${count * 100}%`,
-            }}
+            style={{ transform: `translateX(${translateValue})`, transition, width: `${count * 100}%` }}
           >
             {imgs.map((img, i) => (
-              <div
-                key={i}
-                className="relative h-full flex-none"
-                style={{ width: `${slidePercent}%` }}
-              >
-                <img
-                  src={img}
-                  alt={`Property photo ${i + 1}`}
-                  className="absolute inset-0 w-full h-full object-contain"
-                  draggable={false}
-                />
+              <div key={i} className="relative h-full flex-none" style={{ width: `${slidePercent}%` }}>
+                <img src={img} alt={`Property ${i + 1}`} className="absolute inset-0 w-full h-full object-contain" draggable={false} />
               </div>
             ))}
           </div>
 
-          {/* Photo counter pill */}
           {count > 1 && (
             <div className="absolute top-3 right-3 bg-black/55 text-white text-[11px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none">
               {active + 1} / {count}
             </div>
           )}
 
-          {/* Dot indicators */}
           {count > 1 && count <= 12 && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none">
               {imgs.map((_, i) => (
-                <span
-                  key={i}
-                  className={`rounded-full transition-all duration-250 ${
-                    i === active ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'
-                  }`}
-                />
+                <span key={i} className={`rounded-full transition-all duration-250 ${i === active ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'}`} />
               ))}
             </div>
           )}
 
-          {/* Swipe hint on first load — fades after 2s */}
           {count > 1 && (
             <div className="absolute bottom-10 left-1/2 -translate-x-1/2 pointer-events-none animate-[fadeOut_2s_1.5s_forwards_ease-in]">
               <div className="flex items-center gap-1.5 bg-black/40 text-white text-[10px] font-semibold px-3 py-1 rounded-full backdrop-blur-sm whitespace-nowrap opacity-0 md:opacity-100">
@@ -260,16 +226,13 @@ function Gallery({ images }) {
           )}
         </div>
 
-        {/* Thumbnail strip — desktop */}
         {count > 1 && (
           <div className="hidden md:flex gap-2 p-3 overflow-x-auto no-scrollbar border-t border-slate-100">
             {imgs.map((img, i) => (
               <button
                 key={i}
                 onMouseDown={(e) => { e.stopPropagation(); goTo(i); }}
-                className={`shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${
-                  active === i ? 'border-[#001A33]' : 'border-transparent hover:border-slate-300'
-                }`}
+                className={`shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${active === i ? 'border-[#001A33]' : 'border-transparent hover:border-slate-300'}`}
               >
                 <img src={img} alt="" className="w-full h-full object-cover" draggable={false} />
               </button>
@@ -278,47 +241,26 @@ function Gallery({ images }) {
         )}
       </div>
 
-      {/* Lightbox */}
       {lightbox && (
         <div
-          className="fixed inset-0 z-100 bg-black/93 flex items-center justify-center select-none"
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-          onClick={() => setLightbox(false)}
+          className="fixed inset-0 z-300 bg-black/93 flex items-center justify-center select-none"
+          onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onClick={() => setLightbox(false)}
         >
-          {/* Strip in lightbox */}
-          <div
-            className="w-full h-full overflow-hidden relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close button - moved inside and given high z-index */}
+          <div className="w-full h-full overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
             <button
-              className="absolute top-6 right-6 w-12 h-12 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-50 shadow-lg"
+              className="absolute top-6 right-6 w-12 h-12 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-350 shadow-lg"
               onClick={() => setLightbox(false)}
             >
               <X size={24} strokeWidth={2.5} />
             </button>
             <div
               className="flex h-full absolute top-0 left-0"
-              style={{
-                width: `${count * 100}vw`,
-                transform: `translateX(calc(${-active * 100}vw + ${offset}px))`,
-                transition: touchStartX.current !== null ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
+              style={{ width: `${count * 100}vw`, transform: `translateX(calc(${-active * 100}vw + ${offset}px))`, transition: touchStartX.current !== null ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}
             >
               {imgs.map((img, i) => (
-                <div
-                  key={i}
-                  className="w-[100vw] h-full flex items-center justify-center flex-shrink-0 p-4 md:p-12"
-                >
+                <div key={i} className="w-screen h-full flex items-center justify-center shrink-0 p-4 md:p-12">
                   <div className="w-full h-full md:aspect-video relative rounded-2xl overflow-hidden shadow-2xl bg-black/20">
-                    <img
-                      src={img}
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-contain"
-                      draggable={false}
-                    />
+                    <img src={img} alt="" className="absolute inset-0 w-full h-full object-contain" draggable={false} />
                   </div>
                 </div>
               ))}
@@ -328,24 +270,13 @@ function Gallery({ images }) {
           {count > 1 && (
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2">
               {imgs.map((_, i) => (
-                <span
-                  key={i}
-                  className={`rounded-full transition-all duration-200 ${
-                    i === active ? 'w-5 h-1.5 bg-white' : 'w-2 h-2 bg-white/40'
-                  }`}
-                />
+                <span key={i} className={`rounded-full transition-all duration-200 ${i === active ? 'w-5 h-1.5 bg-white' : 'w-2 h-2 bg-white/40'}`} />
               ))}
             </div>
           )}
         </div>
       )}
-
-      <style>{`
-        @keyframes fadeOut {
-          0%   { opacity: 1; }
-          100% { opacity: 0; }
-        }
-      `}</style>
+      <style>{`@keyframes fadeOut { 0% { opacity: 1; } 100% { opacity: 0; } }`}</style>
     </>
   );
 }
@@ -396,8 +327,7 @@ function ContactModal({ isOpen, onClose, propertyId, sellerName }) {
             <h3 className="text-base font-bold text-slate-900">Contact seller</h3>
             {sellerName && <p className="text-xs text-slate-400 mt-0.5">Listing by {sellerName}</p>}
           </div>
-          <button onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
             <X size={16} strokeWidth={2} />
           </button>
         </div>
@@ -413,44 +343,24 @@ function ContactModal({ isOpen, onClose, propertyId, sellerName }) {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3.5">
-              {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">{error}</div>
-              )}
+              {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">{error}</div>}
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Full name</label>
-                <input
-                  required type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. Rahul Sharma"
-                  className="w-full h-11 border border-slate-200 rounded-xl px-3.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#001A33]/20 focus:border-[#001A33] placeholder:text-slate-300 transition-all"
-                />
+                <input required type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Rahul Sharma" className="w-full h-11 border border-slate-200 rounded-xl px-3.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#001A33]/20 focus:border-[#001A33] placeholder:text-slate-300 transition-all" />
               </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Mobile number</label>
                 <div className="flex gap-2">
                   <div className="h-11 px-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center text-sm text-slate-500 font-medium shrink-0">🇮🇳 +91</div>
-                  <input
-                    required type="tel" maxLength={10}
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '') })}
-                    placeholder="98765 43210"
-                    className="flex-1 h-11 border border-slate-200 rounded-xl px-3.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#001A33]/20 focus:border-[#001A33] placeholder:text-slate-300 transition-all"
-                  />
+                  <input required type="tel" maxLength={10} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '') })} placeholder="98765 43210" className="flex-1 h-11 border border-slate-200 rounded-xl px-3.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#001A33]/20 focus:border-[#001A33] placeholder:text-slate-300 transition-all" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Message (optional)</label>
-                <textarea
-                  rows={2}
-                  value={form.message}
-                  onChange={(e) => setForm({ ...form, message: e.target.value })}
-                  placeholder="Any specific questions for the seller?"
-                  className="w-full border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#001A33]/20 focus:border-[#001A33] placeholder:text-slate-300 resize-none transition-all"
-                />
+                <textarea rows={2} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Any specific questions for the seller?" className="w-full border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-[#001A33]/20 focus:border-[#001A33] placeholder:text-slate-300 resize-none transition-all" />
               </div>
 
               <div className="space-y-2.5 pt-1">
@@ -460,13 +370,7 @@ function ContactModal({ isOpen, onClose, propertyId, sellerName }) {
                 ].map(({ key, label, required }) => (
                   <label key={key} className="flex items-start gap-3 cursor-pointer">
                     <div className="relative mt-0.5 shrink-0">
-                      <input
-                        type="checkbox"
-                        required={required}
-                        checked={form[key]}
-                        onChange={(e) => setForm({ ...form, [key]: e.target.checked })}
-                        className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md bg-white checked:bg-[#001A33] checked:border-[#001A33] transition cursor-pointer"
-                      />
+                      <input type="checkbox" required={required} checked={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.checked })} className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md bg-white checked:bg-[#001A33] checked:border-[#001A33] transition cursor-pointer" />
                       <CheckCircle size={13} className="absolute top-0.5 left-0.5 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" strokeWidth={3} />
                     </div>
                     <span className="text-sm text-slate-600 leading-snug">{label}</span>
@@ -474,11 +378,7 @@ function ContactModal({ isOpen, onClose, propertyId, sellerName }) {
                 ))}
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-12 bg-[#001A33] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#13304c] transition-all disabled:opacity-60 mt-2"
-              >
+              <button type="submit" disabled={loading} className="w-full h-12 bg-[#001A33] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#13304c] transition-all disabled:opacity-60 mt-2">
                 {loading ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : 'Send inquiry'}
               </button>
             </form>
@@ -525,12 +425,15 @@ function ExpandableText({ text, maxLines = 4 }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-const PropertyDisplayPage = () => {
-  const { id }           = useParams();
+// ADDED PROPS: propertyId, adminMode, onAdminClose, adminActions, refreshKey
+const PropertyDisplayPage = ({ propertyId, adminMode, onAdminClose, adminActions: AdminActions, refreshKey }) => {
+  const { id: paramId }  = useParams();
   const navigate         = useNavigate();
   const likedPropertyIds = usePropertyStore((s) => s.likedPropertyIds);
   const toggleFavorite   = usePropertyStore((s) => s.toggleFavorite);
   const fetchFavorites   = usePropertyStore((s) => s.fetchFavorites);
+
+  const id = propertyId || paramId; // Use admin prop if available, else use route param
 
   const [property,  setProperty]  = useState(null);
   const [loading,   setLoading]   = useState(true);
@@ -549,8 +452,8 @@ const PropertyDisplayPage = () => {
       finally  { setLoading(false); }
     };
     if (id) load();
-    fetchFavorites();
-  }, [id]);
+    if (!adminMode) fetchFavorites(); // Admins don't need favorites
+  }, [id, refreshKey, adminMode]);
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -569,7 +472,7 @@ const PropertyDisplayPage = () => {
 
   // ── Loading / error states ─────────────────────────────────────────────────
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className={`${adminMode ? 'h-full' : 'min-h-screen'} flex items-center justify-center`}>
       <div className="flex flex-col items-center gap-3">
         <Loader2 size={28} className="animate-spin text-[#001A33]" strokeWidth={2} />
         <p className="text-sm text-slate-400">Loading property…</p>
@@ -578,10 +481,10 @@ const PropertyDisplayPage = () => {
   );
 
   if (error || !property) return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className={`${adminMode ? 'h-full' : 'min-h-screen'} flex items-center justify-center`}>
       <div className="text-center">
         <p className="text-red-500 font-semibold mb-3">{error || 'Property not found'}</p>
-        <button onClick={() => navigate(-1)} className="text-sm text-[#001A33] underline">Go back</button>
+        <button onClick={() => adminMode ? onAdminClose() : navigate(-1)} className="text-sm text-[#001A33] underline">Go back</button>
       </div>
     </div>
   );
@@ -618,7 +521,7 @@ const PropertyDisplayPage = () => {
   }
   if (isCommercial && cd) {
     if (cd.carpetArea)        specs.push({ icon: Maximize2,      label: 'Carpet area', value: `${cd.carpetArea} ${cd.areaUnit || 'sq.ft'}` });
-    if (cd.floorNumber != null) specs.push({ icon: Layers,      label: 'Floor',        value: cd.totalFloors ? `${cd.floorNumber} / ${cd.totalFloors}` : cd.floorNumber });
+    if (cd.floorNumber != null) specs.push({ icon: Layers,       label: 'Floor',        value: cd.totalFloors ? `${cd.floorNumber} / ${cd.totalFloors}` : cd.floorNumber });
     if (cd.washrooms)         specs.push({ icon: DoorOpen,       label: 'Washrooms',   value: cd.washrooms });
     if (cd.furnishingStatus)  specs.push({ icon: Sofa,           label: 'Furnishing',  value: cd.furnishingStatus });
   }
@@ -626,31 +529,28 @@ const PropertyDisplayPage = () => {
   const displayTitle = title || `${propertyType} for ${transactionType} in ${location?.city || ''}`;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className={adminMode ? "bg-slate-50 h-full pb-20" : "min-h-screen bg-slate-50"}>
 
       {/* ── Mobile sticky topbar ── */}
-      <div className="sticky top-14 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 py-2.5 md:hidden">
+      <div className="sticky top-0 sm:top-14 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 py-2.5 md:hidden">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => adminMode ? onAdminClose() : navigate(-1)}
           className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition"
         >
-          <ArrowLeft size={18} strokeWidth={2} />
+          {adminMode ? <X size={18} strokeWidth={2} /> : <ArrowLeft size={18} strokeWidth={2} />}
         </button>
         <p className="text-sm font-bold text-slate-800 truncate max-w-45">{displayTitle}</p>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleShare}
-            className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition"
-          >
-            <Share2 size={17} strokeWidth={2} />
-          </button>
-          <button
-            onClick={() => toggleFavorite(id)}
-            className={`w-9 h-9 rounded-full border flex items-center justify-center transition
-              ${isLiked ? 'border-red-200 bg-red-50 text-red-500' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-          >
-            <Heart size={17} strokeWidth={2} className={isLiked ? 'fill-red-500' : ''} />
-          </button>
+          {!adminMode && (
+            <>
+              <button onClick={handleShare} className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition">
+                <Share2 size={17} strokeWidth={2} />
+              </button>
+              <button onClick={() => toggleFavorite(id)} className={`w-9 h-9 rounded-full border flex items-center justify-center transition ${isLiked ? 'border-red-200 bg-red-50 text-red-500' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                <Heart size={17} strokeWidth={2} className={isLiked ? 'fill-red-500' : ''} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -658,10 +558,11 @@ const PropertyDisplayPage = () => {
 
         {/* ── Desktop back button ── */}
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => adminMode ? onAdminClose() : navigate(-1)}
           className="hidden md:flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-[#001A33] transition mb-5"
         >
-          <ArrowLeft size={16} strokeWidth={2} /> Back to listings
+          {adminMode ? <X size={16} strokeWidth={2} /> : <ArrowLeft size={16} strokeWidth={2} />} 
+          {adminMode ? 'Close Review' : 'Back to listings'}
         </button>
 
         {/* ── Desktop title row ── */}
@@ -697,7 +598,7 @@ const PropertyDisplayPage = () => {
           {/* ── LEFT COLUMN ── */}
           <div className="flex flex-col gap-5 min-w-0">
 
-            {/* 1. Gallery — FIRST thing users want to see */}
+            {/* 1. Gallery */}
             <Gallery images={images} />
 
             {/* 2. Mobile title + price card */}
@@ -710,7 +611,6 @@ const PropertyDisplayPage = () => {
               </div>
               <h1 className="text-xl font-black text-slate-900 leading-tight mb-3">{displayTitle}</h1>
 
-              {/* Price prominent */}
               <div className="flex items-end justify-between">
                 <div>
                   <p className="text-2xl font-black text-[#001A33]">{formatINR(price?.value)}</p>
@@ -736,7 +636,7 @@ const PropertyDisplayPage = () => {
               </div>
             </div>
 
-            {/* 3. Key specs — second most important info */}
+            {/* 3. Key specs */}
             {specs.length > 0 && (
               <SectionBlock title="Property highlights">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -745,21 +645,15 @@ const PropertyDisplayPage = () => {
               </SectionBlock>
             )}
 
-            {/* 4. Pricing details — what users care about */}
+            {/* 4. Pricing details */}
             <SectionBlock title="Pricing">
               <div className="divide-y divide-slate-100">
-                <InfoRow
-                  label={isRent ? 'Monthly rent' : 'Expected price'}
-                  value={formatINR(price?.value)}
-                />
+                <InfoRow label={isRent ? 'Monthly rent' : 'Expected price'} value={formatINR(price?.value)} />
                 {isRent && price?.securityDeposit && (
                   <InfoRow label="Security deposit" value={formatINR(price.securityDeposit)} />
                 )}
                 {isRent && (
-                  <InfoRow
-                    label="Maintenance"
-                    value={price?.maintenanceIncluded ? 'Included in rent' : 'Charged separately'}
-                  />
+                  <InfoRow label="Maintenance" value={price?.maintenanceIncluded ? 'Included in rent' : 'Charged separately'} />
                 )}
                 <InfoRow label="Negotiable" value={price?.isNegotiable ? 'Yes' : 'No'} />
               </div>
@@ -870,39 +764,43 @@ const PropertyDisplayPage = () => {
                 </div>
               )}
 
-              {/* CTAs */}
-              <div className="p-4 flex flex-col gap-2.5">
-                <button
-                  onClick={() => setModalOpen(true)}
-                  className="w-full h-12 bg-[#001A33] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#13304c] transition-all active:scale-[0.98]"
-                >
-                  <Phone size={16} strokeWidth={2} /> Contact seller
-                </button>
-                {sellerPhone && (
-                  <a
-                    href={`tel:+91${sellerPhone}`}
-                    className="w-full h-11 border-2 border-[#001A33] text-[#001A33] rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#001A33]/5 transition-all"
-                  >
-                    <Phone size={15} strokeWidth={2} /> Call directly
-                  </a>
-                )}
-                <div className="flex gap-2">
+              {/* CTAs -> Swaps dynamically to Admin Tools if adminMode is true */}
+              {adminMode && AdminActions ? (
+                <AdminActions property={property} />
+              ) : (
+                <div className="p-4 flex flex-col gap-2.5">
                   <button
-                    onClick={() => toggleFavorite(id)}
-                    className={`flex-1 h-10 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.97]
-                      ${isLiked ? 'border-red-200 bg-red-50 text-red-500' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                    onClick={() => setModalOpen(true)}
+                    className="w-full h-12 bg-[#001A33] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#13304c] transition-all active:scale-[0.98]"
                   >
-                    <Heart size={15} strokeWidth={2} className={isLiked ? 'fill-red-500' : ''} />
-                    {isLiked ? 'Saved' : 'Save'}
+                    <Phone size={16} strokeWidth={2} /> Contact seller
                   </button>
-                  <button
-                    onClick={handleShare}
-                    className="flex-1 h-10 rounded-xl border-2 border-slate-200 text-slate-600 font-bold text-sm flex items-center justify-center gap-1.5 hover:border-slate-300 transition-all"
-                  >
-                    <Share2 size={15} strokeWidth={2} /> Share
-                  </button>
+                  {sellerPhone && (
+                    <a
+                      href={`tel:+91${sellerPhone}`}
+                      className="w-full h-11 border-2 border-[#001A33] text-[#001A33] rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#001A33]/5 transition-all"
+                    >
+                      <Phone size={15} strokeWidth={2} /> Call directly
+                    </a>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => toggleFavorite(id)}
+                      className={`flex-1 h-10 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.97]
+                        ${isLiked ? 'border-red-200 bg-red-50 text-red-500' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                    >
+                      <Heart size={15} strokeWidth={2} className={isLiked ? 'fill-red-500' : ''} />
+                      {isLiked ? 'Saved' : 'Save'}
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      className="flex-1 h-10 rounded-xl border-2 border-slate-200 text-slate-600 font-bold text-sm flex items-center justify-center gap-1.5 hover:border-slate-300 transition-all"
+                    >
+                      <Share2 size={15} strokeWidth={2} /> Share
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Seller info */}
               <div className="px-4 pb-4">
@@ -920,25 +818,27 @@ const PropertyDisplayPage = () => {
 
             </div>
 
-            {/* Safety tips */}
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Shield size={14} className="text-amber-600 shrink-0" strokeWidth={2} />
-                <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">Safety tips</p>
+            {/* Safety tips - Hide in admin mode */}
+            {!adminMode && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield size={14} className="text-amber-600 shrink-0" strokeWidth={2} />
+                  <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">Safety tips</p>
+                </div>
+                <ul className="space-y-1.5">
+                  {[
+                    'Verify all property documents before payment',
+                    'Never pay via wire transfer to unknown accounts',
+                    'Visit the property in person before finalising',
+                    'Confirm RERA registration for new projects',
+                  ].map((tip, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-amber-700">
+                      <span className="mt-0.5 shrink-0">•</span> {tip}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="space-y-1.5">
-                {[
-                  'Verify all property documents before payment',
-                  'Never pay via wire transfer to unknown accounts',
-                  'Visit the property in person before finalising',
-                  'Confirm RERA registration for new projects',
-                ].map((tip, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-amber-700">
-                    <span className="mt-0.5 shrink-0">•</span> {tip}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            )}
 
           </div>
         </div>
@@ -946,36 +846,33 @@ const PropertyDisplayPage = () => {
 
       {/* ── Mobile sticky bottom CTA ── */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-3 flex gap-3 z-40 lg:hidden">
-        <button
-          onClick={() => toggleFavorite(id)}
-          className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center transition shrink-0 active:scale-[0.95]
-            ${isLiked ? 'border-red-200 bg-red-50 text-red-500' : 'border-slate-200 text-slate-500'}`}
-        >
-          <Heart size={20} strokeWidth={2} className={isLiked ? 'fill-red-500' : ''} />
-        </button>
-        {sellerPhone && (
-          <a
-            href={`tel:+91${sellerPhone}`}
-            className="w-12 h-12 rounded-xl border-2 border-slate-200 flex items-center justify-center text-[#001A33] shrink-0 transition hover:bg-slate-50 active:scale-[0.95]"
-          >
-            <Phone size={18} strokeWidth={2} />
-          </a>
+        {adminMode && AdminActions ? (
+          <AdminActions property={property} mobile />
+        ) : (
+          <>
+            <button
+              onClick={() => toggleFavorite(id)}
+              className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center transition shrink-0 active:scale-[0.95]
+                ${isLiked ? 'border-red-200 bg-red-50 text-red-500' : 'border-slate-200 text-slate-500'}`}
+            >
+              <Heart size={20} strokeWidth={2} className={isLiked ? 'fill-red-500' : ''} />
+            </button>
+            {sellerPhone && (
+              <a href={`tel:+91${sellerPhone}`} className="w-12 h-12 rounded-xl border-2 border-slate-200 flex items-center justify-center text-[#001A33] shrink-0 transition hover:bg-slate-50 active:scale-[0.95]">
+                <Phone size={18} strokeWidth={2} />
+              </a>
+            )}
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex-1 h-12 bg-[#001A33] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#13304c] transition-all active:scale-[0.98]"
+            >
+              <Phone size={18} strokeWidth={2} /> Contact seller
+            </button>
+          </>
         )}
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex-1 h-12 bg-[#001A33] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#13304c] transition-all active:scale-[0.98]"
-        >
-          <Phone size={18} strokeWidth={2} /> Contact seller
-        </button>
       </div>
 
-      {/* Contact modal */}
-      <ContactModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        propertyId={id}
-        sellerName={sellerName}
-      />
+      <ContactModal isOpen={modalOpen} onClose={() => setModalOpen(false)} propertyId={id} sellerName={sellerName} />
     </div>
   );
 };
