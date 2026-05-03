@@ -69,6 +69,17 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-2">
             {isAuth ? (
               <>
+                {/* Admin Only Button */}
+                {user?.role === 'admin' && (
+                  <Link
+                    to="/admin"
+                    className="h-9 px-5 rounded-full border-[1.5px] border-rose-200 text-[13px] font-bold text-rose-600
+                      inline-flex items-center hover:bg-rose-50 transition-all mr-1"
+                  >
+                    Admin Panel
+                  </Link>
+                )}
+
                 {(user?.role === 'seller' || user?.role === 'admin') && (
                   <Link
                     to="/seller-dashboard"
@@ -79,6 +90,7 @@ export default function Navbar() {
                     Dashboard
                   </Link>
                 )}
+                
                 <Link
                   to="/properties?mode=liked"
                   className="h-9 px-5 rounded-full border-[1.5px] border-slate-200 text-[13px] font-bold text-[#555]
@@ -231,9 +243,9 @@ export default function Navbar() {
               <nav className="flex-1 px-4 py-4 flex flex-col gap-0.5">
                 {[
                   { label: 'Home',              to: '/'                       },
+                  ...(user?.role === 'admin' ? [{ label: 'Admin Panel', to: '/admin' }] : []),
                   ...(user?.role === 'seller' || user?.role === 'admin' ? [{ label: 'Dashboard', to: '/seller-dashboard' }] : []),
                   { label: 'Saved properties',  to: '/properties?mode=liked'  },
-                  { label: 'My listings',       to: '/my-listings'            },
                 ].map(({ label, to }) => (
                   <Link
                     key={to}
