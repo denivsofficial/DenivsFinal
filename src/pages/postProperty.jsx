@@ -78,7 +78,7 @@ function InputBase({ className = "", hasError, ...props }) {
         bg-white focus:outline-none focus:ring-2 focus:ring-[#0A1628]/20 transition-all 
         ${hasError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#0A1628]'} 
         placeholder:text-slate-300 ${className}`}
-        onWheel={(e) => e.target.blur()}
+      onWheel={(e) => e.target.blur()}
       {...props}
     />
   );
@@ -158,7 +158,7 @@ export default function PostProperty() {
   // ─── MASTER FORM STATE ───
   
   // Step 1 — Type & Category
-  const [listingCategory, setListingCategory] = useState(""); // 'Unit' or 'Project'
+  const [listingCategory, setListingCategory] = useState(""); 
   const [transactionType, setTransactionType] = useState("Sale"); 
   const [sellerType,    setSellerType]    = useState("");
   const [agentReraId,   setAgentReraId]   = useState("");
@@ -171,10 +171,9 @@ export default function PostProperty() {
   const [locality, setLocality] = useState("");
   const [stateName,setStateName]= useState("Maharashtra");
   const [pincode,  setPincode]  = useState("");
-  const [project,  setProject]  = useState(""); // Optional society name
+  const [project,  setProject]  = useState(""); 
 
   // Step 3 — Details (dynamic)
-  // -- Single Unit Fields --
   const [bedrooms,    setBedrooms]    = useState("");
   const [bathrooms,   setBathrooms]   = useState("");
   const [furnishing,  setFurnishing]  = useState("Unfurnished");
@@ -188,12 +187,15 @@ export default function PostProperty() {
   const [commFloor,   setCommFloor]   = useState("");
   const [washrooms,   setWashrooms]   = useState("");
   const [commFurnish, setCommFurnish] = useState("Bare Shell");
-  // -- Project Fields --
+  
+  // -- Project Fields (NO Approval Authority) --
   const [builderName, setBuilderName] = useState("");
   const [projectStatus, setProjectStatus] = useState("Under Construction");
+  const [launchDate, setLaunchDate] = useState("");
   const [possessionDate, setPossessionDate] = useState("");
   const [totalTowers, setTotalTowers] = useState("");
   const [totalUnits, setTotalUnits] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
   const [configurations, setConfigurations] = useState([]);
   
   // Shared Details
@@ -205,7 +207,7 @@ export default function PostProperty() {
   const [maintenanceIncluded, setMaintenanceIncluded] = useState(false); 
   const [isNegotiable,    setIsNegotiable]    = useState(false);
   const [isResale,        setIsResale]        = useState(null);
-  const [reraId,          setReraId]          = useState(""); // Project RERA
+  const [reraId,          setReraId]          = useState(""); 
   const [propTitle,       setPropTitle]       = useState("");
   const [description,     setDescription]     = useState("");
   
@@ -215,7 +217,6 @@ export default function PostProperty() {
   const [masterPlanImage, setMasterPlanImage] = useState(null);
   const [brochureFile,    setBrochureFile]    = useState(null);
 
-  // ── Auto-fill contact from user profile ──
   useEffect(() => {
     if (user?.contactNumber) {
       setContactNumber(user.contactNumber);
@@ -223,13 +224,11 @@ export default function PostProperty() {
     }
   }, [user]);
 
-  // ── Computed flags ──
   const isResidential = propertyType === "Apartment" || propertyType === "House";
   const isLand        = propertyType === "Land";
   const isCommercial  = propertyType === "Office" || propertyType === "Shop";
   const isRent        = transactionType === "Rent";
 
-  // ── Handlers ──
   const handleFileChange = (e) => {
     const { name, files } = e.target;
     if (name === 'images') {
@@ -258,9 +257,12 @@ export default function PostProperty() {
   const addConfiguration = () => {
     setConfigurations([...configurations, { 
       configType: 'Apartment', 
-      bhk: '2 BHK', 
+      bhk: '2 BHK',
+      bathrooms: '',
+      balconies: '',
       carpetArea: '', 
-      priceValue: '' 
+      priceValue: '',
+      floorPlanFile: null
     }]);
   };
 
@@ -328,7 +330,6 @@ export default function PostProperty() {
     
     setErrors(e);
     
-    // Auto-scroll to first error
     const firstErrorKey = Object.keys(e)[0];
     if (firstErrorKey && fieldRefs.current[firstErrorKey]) {
       fieldRefs.current[firstErrorKey].scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -337,7 +338,6 @@ export default function PostProperty() {
     return Object.keys(e).length === 0;
   };
 
-  // ── Navigation ───────────────────────────────────────────────────────────────
   const handleNext = async () => {
     if (!validate(step)) return;
 
@@ -387,16 +387,27 @@ export default function PostProperty() {
         fd.append("projectDetails", JSON.stringify({
           builderName,
           projectStatus,
+          videoUrl, // Replaced Approval Authority with Video Url nicely
+          launchDate: launchDate || undefined,
           possessionDate: possessionDate || undefined,
           totalTowers: parseInt(totalTowers) || 0,
           totalUnits: parseInt(totalUnits) || 0,
           configurations: configurations.map(c => ({
             configType: c.configType,
             bhk: c.bhk,
+            bathrooms: Number(c.bathrooms) || 0,
+            balconies: Number(c.balconies) || 0,
             carpetArea: Number(c.carpetArea),
             priceValue: Number(c.priceValue)
           }))
         }));
+
+        configurations.forEach((c, index) => {
+          if (c.floorPlanFile) {
+            fd.append(`floorPlan_${index}`, c.floorPlanFile);
+          }
+        });
+        
       } else {
         if (isResidential) {
           fd.append("residentialDetails", JSON.stringify({
@@ -430,20 +441,18 @@ export default function PostProperty() {
 
       if (propTitle)        fd.append("title",            propTitle);
       if (description)      fd.append("description",      description);
-      if (project)          fd.append("project",          project); // Society name mapping
+      if (project)          fd.append("project",          project); 
       if (amenities.length) fd.append("amenities",        JSON.stringify(amenities));
       if (reraId)           fd.append("reraId",           reraId.toUpperCase());
       
       fd.append("formStep",   "4");
-      fd.append("formStatus", "submitted"); // Auto-submits for admin review
+      fd.append("formStatus", "submitted"); 
 
-      // Images Processing
       const orderedImages = coverIndex > 0
         ? [ images[coverIndex], ...images.slice(0, coverIndex), ...images.slice(coverIndex + 1) ]
         : images;
       orderedImages.forEach((img) => fd.append("images", img.file));
 
-      // Project Media Processing
       if (listingCategory === 'Project') {
         if (masterPlanImage) fd.append("masterPlanImage", masterPlanImage);
         if (brochureFile)    fd.append("brochureUrl",     brochureFile);
@@ -468,15 +477,11 @@ export default function PostProperty() {
   };
 
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 flex items-start justify-center py-8 px-4">
       <ToastContainer position="top-right" autoClose={3000} />
 
       <div className="w-full max-w-xl">
-        {/* Brand */}
         <div className="flex items-center gap-2.5 mb-6">
           <Link to="/" className="flex items-center gap-2.5">
             <div className="w-9 h-9 bg-[#0A1628] rounded-xl flex items-center justify-center shadow-lg shadow-slate-900/20">
@@ -820,6 +825,17 @@ export default function PostProperty() {
                       </SelectBase>
                     </div>
                     <div>
+                      <FieldLabel>Video Walkthrough Link</FieldLabel>
+                      <InputBase placeholder="e.g. https://youtube.com/watch?v=..." value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <FieldLabel>Launch Date</FieldLabel>
+                      <InputBase type="date" value={launchDate} onChange={e => setLaunchDate(e.target.value)} />
+                    </div>
+                    <div>
                       <FieldLabel>Possession Date</FieldLabel>
                       <InputBase type="date" value={possessionDate} onChange={e => setPossessionDate(e.target.value)} />
                     </div>
@@ -828,11 +844,11 @@ export default function PostProperty() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <FieldLabel>Total Towers</FieldLabel>
-                      <InputBase type="number" placeholder="e.g. 5" value={totalTowers} onChange={e => setTotalTowers(e.target.value)} />
+                      <InputBase type="number" placeholder="e.g. 5" value={totalTowers} onChange={e => setTotalTowers(e.target.value)} onWheel={(e) => e.target.blur()} />
                     </div>
                     <div>
                       <FieldLabel>Total Units</FieldLabel>
-                      <InputBase type="number" placeholder="e.g. 500" value={totalUnits} onChange={e => setTotalUnits(e.target.value)} />
+                      <InputBase type="number" placeholder="e.g. 500" value={totalUnits} onChange={e => setTotalUnits(e.target.value)} onWheel={(e) => e.target.blur()} />
                     </div>
                   </div>
 
@@ -892,21 +908,33 @@ export default function PostProperty() {
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                {isResiConfig && (
+                                  <>
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Baths</label>
+                                      <InputBase type="number" placeholder="2" value={config.bathrooms} onChange={(e) => updateConfiguration(index, 'bathrooms', e.target.value)} className="h-10 text-xs" onWheel={(e) => e.target.blur()} />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Balconies</label>
+                                      <InputBase type="number" placeholder="1" value={config.balconies} onChange={(e) => updateConfiguration(index, 'balconies', e.target.value)} className="h-10 text-xs" onWheel={(e) => e.target.blur()} />
+                                    </div>
+                                  </>
+                                )}
+                                <div className={isResiConfig ? "" : "sm:col-span-2"}>
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Carpet Area</label>
                                   <div className="relative">
-                                    <InputBase type="number" placeholder="1200" value={config.carpetArea} onChange={(e) => updateConfiguration(index, 'carpetArea', e.target.value)} className="h-10 text-xs pr-12" hasError={!!errors[`configArea_${index}`]} />
+                                    <InputBase type="number" placeholder="1200" value={config.carpetArea} onChange={(e) => updateConfiguration(index, 'carpetArea', e.target.value)} className="h-10 text-xs pr-12" hasError={!!errors[`configArea_${index}`]} onWheel={(e) => e.target.blur()} />
                                     <span className="absolute right-3 top-2.5 text-[10px] text-slate-400 pointer-events-none">sq.ft</span>
                                   </div>
                                   <FieldError msg={errors[`configArea_${index}`]} />
                                 </div>
-                                <div>
+                                <div className={isResiConfig ? "" : "sm:col-span-2"}>
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Starting Price</label>
                                   <div className="relative flex flex-col">
                                     <div className="relative">
                                       <span className="absolute left-3 top-2.5 text-slate-500 font-semibold text-[10px] pointer-events-none">₹</span>
-                                      <InputBase type="number" placeholder="8500000" value={config.priceValue} onChange={(e) => updateConfiguration(index, 'priceValue', e.target.value)} className="h-10 text-xs pl-6" hasError={!!errors[`configPrice_${index}`]} />
+                                      <InputBase type="number" placeholder="8500000" value={config.priceValue} onChange={(e) => updateConfiguration(index, 'priceValue', e.target.value)} className="h-10 text-xs pl-6" hasError={!!errors[`configPrice_${index}`]} onWheel={(e) => e.target.blur()} />
                                     </div>
                                     {config.priceValue && (
                                       <span className="text-[10px] font-bold text-emerald-600 mt-1 pl-1">
@@ -917,6 +945,17 @@ export default function PostProperty() {
                                   <FieldError msg={errors[`configPrice_${index}`]} />
                                 </div>
                               </div>
+
+                              <div className="sm:col-span-2 pt-3 border-t border-slate-100 mt-3">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Floor Plan Image (Optional)</label>
+                                <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  onChange={(e) => updateConfiguration(index, 'floorPlanFile', e.target.files[0])} 
+                                  className="w-full text-xs file:mr-4 file:py-1.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#0A1628]/5 file:text-[#0A1628] hover:file:bg-[#0A1628]/10 cursor-pointer transition-colors" 
+                                />
+                              </div>
+
                             </div>
                           );
                         })}
