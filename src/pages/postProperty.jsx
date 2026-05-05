@@ -1,18 +1,16 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   Building, Home, MapPin, Briefcase, Store,
   UploadCloud, ChevronLeft, ChevronRight,
   CheckCircle2, X, User, Handshake, HardHat,
-  Phone, Lock, AlertTriangle,
+  Phone, Lock, AlertTriangle, Building2, Plus, Trash2, FileText
 } from "lucide-react";
 import useAuthStore, { apiClient } from "../store/useAuthStore";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-// Replaced emojis with Lucide React components
 const SELLER_TYPES = [
   { id: "Owner",   icon: User,      label: "Owner",   desc: "I own this property"     },
   { id: "Agent",   icon: Handshake, label: "Agent",   desc: "Licensed broker / agent" },
@@ -39,10 +37,22 @@ const CITIES = [
   "Nashik", "Nagpur", "Thane",
 ];
 
+const BHK_OPTIONS = [
+  "1 RK", "1 BHK", "1.5 BHK", "2 BHK", "2.5 BHK", "3 BHK", "4 BHK", "5 BHK", "5+ BHK"
+];
+
 const STEP_LABELS = ["Who & What", "Location", "Details", "Pricing & Photos"];
 
-// ─── Small reusable pieces ────────────────────────────────────────────────────
+// ─── Formatting Helper (No more counting zeros!) ──────────────────────────────
+const formatINRText = (val) => {
+  const n = parseInt(val);
+  if (!n || isNaN(n)) return null;
+  if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
+  if (n >= 100000)    return `₹${(n / 100000).toFixed(2)} Lakh`;
+  return `₹${n.toLocaleString("en-IN")}`;
+};
 
+// ─── Small reusable pieces ────────────────────────────────────────────────────
 function FieldLabel({ children, required }) {
   return (
     <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5">
@@ -61,23 +71,26 @@ function FieldError({ msg }) {
   );
 }
 
-function InputBase({ className = "", ...props }) {
+function InputBase({ className = "", hasError, ...props }) {
   return (
     <input
-      className={`w-full h-11 border border-slate-200 rounded-xl px-3.5 text-sm text-slate-800
-        bg-white focus:outline-none focus:ring-2 focus:ring-[#0A1628]/20 focus:border-[#0A1628]
-        placeholder:text-slate-300 transition-all ${className}`}
+      className={`w-full h-11 border rounded-xl px-3.5 text-sm text-slate-800
+        bg-white focus:outline-none focus:ring-2 focus:ring-[#0A1628]/20 transition-all 
+        ${hasError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#0A1628]'} 
+        placeholder:text-slate-300 ${className}`}
+        onWheel={(e) => e.target.blur()}
       {...props}
     />
   );
 }
 
-function SelectBase({ className = "", children, ...props }) {
+function SelectBase({ className = "", hasError, children, ...props }) {
   return (
     <select
-      className={`w-full h-11 border border-slate-200 rounded-xl px-3.5 text-sm text-slate-800
-        bg-white focus:outline-none focus:ring-2 focus:ring-[#0A1628]/20 focus:border-[#0A1628]
-        transition-all cursor-pointer ${className}`}
+      className={`w-full h-11 border rounded-xl px-3.5 text-sm text-slate-800
+        bg-white focus:outline-none focus:ring-2 focus:ring-[#0A1628]/20 transition-all cursor-pointer 
+        ${hasError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-[#0A1628]'} 
+        ${className}`}
       {...props}
     >
       {children}
@@ -126,13 +139,26 @@ function Toggle({ checked, onChange }) {
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ─── Main Component ─────────────────────────────────────────────────────────────
 
 export default function PostProperty() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
 
-  // Step 1+2 (merged)
+  // References for scroll-to-error behavior
+  const fieldRefs = useRef({});
+  const setRef = (id) => (el) => { fieldRefs.current[id] = el; };
+
+  // App state
+  const [step,       setStep]       = useState(1);
+  const [propertyId, setPropertyId] = useState(null);
+  const [isLoading,  setIsLoading]  = useState(false);
+  const [errors,     setErrors]     = useState({});
+
+  // ─── MASTER FORM STATE ───
+  
+  // Step 1 — Type & Category
+  const [listingCategory, setListingCategory] = useState(""); // 'Unit' or 'Project'
   const [transactionType, setTransactionType] = useState("Sale"); 
   const [sellerType,    setSellerType]    = useState("");
   const [agentReraId,   setAgentReraId]   = useState("");
@@ -145,9 +171,10 @@ export default function PostProperty() {
   const [locality, setLocality] = useState("");
   const [stateName,setStateName]= useState("Maharashtra");
   const [pincode,  setPincode]  = useState("");
-  const [project,  setProject]  = useState("");
+  const [project,  setProject]  = useState(""); // Optional society name
 
   // Step 3 — Details (dynamic)
+  // -- Single Unit Fields --
   const [bedrooms,    setBedrooms]    = useState("");
   const [bathrooms,   setBathrooms]   = useState("");
   const [furnishing,  setFurnishing]  = useState("Unfurnished");
@@ -161,27 +188,34 @@ export default function PostProperty() {
   const [commFloor,   setCommFloor]   = useState("");
   const [washrooms,   setWashrooms]   = useState("");
   const [commFurnish, setCommFurnish] = useState("Bare Shell");
+  // -- Project Fields --
+  const [builderName, setBuilderName] = useState("");
+  const [projectStatus, setProjectStatus] = useState("Under Construction");
+  const [possessionDate, setPossessionDate] = useState("");
+  const [totalTowers, setTotalTowers] = useState("");
+  const [totalUnits, setTotalUnits] = useState("");
+  const [configurations, setConfigurations] = useState([]);
+  
+  // Shared Details
   const [amenities,   setAmenities]   = useState([]);
 
-  // Step 4 — Pricing & Photos
-  const [price,           setPrice]           = useState("");
+  // Step 4 — Pricing & Media
+  const [price,           setPrice]           = useState(""); 
   const [securityDeposit, setSecurityDeposit] = useState(""); 
   const [maintenanceIncluded, setMaintenanceIncluded] = useState(false); 
   const [isNegotiable,    setIsNegotiable]    = useState(false);
   const [isResale,        setIsResale]        = useState(null);
-  const [reraId,          setReraId]          = useState("");
+  const [reraId,          setReraId]          = useState(""); // Project RERA
   const [propTitle,       setPropTitle]       = useState("");
   const [description,     setDescription]     = useState("");
+  
+  // Media (Files)
   const [images,          setImages]          = useState([]);
   const [coverIndex,      setCoverIndex]      = useState(0);
+  const [masterPlanImage, setMasterPlanImage] = useState(null);
+  const [brochureFile,    setBrochureFile]    = useState(null);
 
-  // App state
-  const [step,       setStep]       = useState(1);
-  const [propertyId, setPropertyId] = useState(null);
-  const [isLoading,  setIsLoading]  = useState(false);
-  const [errors,     setErrors]     = useState({});
-
-  // ── Auto-fill contact from user profile ──────────────────────────────────────
+  // ── Auto-fill contact from user profile ──
   useEffect(() => {
     if (user?.contactNumber) {
       setContactNumber(user.contactNumber);
@@ -189,44 +223,117 @@ export default function PostProperty() {
     }
   }, [user]);
 
-  // ── Computed flags ───────────────────────────────────────────────────────────
+  // ── Computed flags ──
   const isResidential = propertyType === "Apartment" || propertyType === "House";
   const isLand        = propertyType === "Land";
   const isCommercial  = propertyType === "Office" || propertyType === "Shop";
   const isRent        = transactionType === "Rent";
 
+  // ── Handlers ──
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    if (name === 'images') {
+      Array.from(files).forEach((file) => {
+        const r = new FileReader();
+        r.onload = (ev) => setImages((prev) => [...prev, { file, preview: ev.target.result }]);
+        r.readAsDataURL(file);
+      });
+    } else if (name === 'masterPlanImage') {
+      setMasterPlanImage(files[0]);
+    } else if (name === 'brochureFile') {
+      setBrochureFile(files[0]);
+    }
+  };
+  
+  const removeImage = (i) => {
+    setImages((prev) => prev.filter((_, idx) => idx !== i));
+    setCoverIndex((prev) => (i === prev ? 0 : i < prev ? prev - 1 : prev));
+  };
+
+  const toggleAmenity  = (name) =>
+    setAmenities((prev) => prev.includes(name) ? prev.filter((a) => a !== name) : [...prev, name]);
+
+
+  // ── Project Configuration Handlers ──
+  const addConfiguration = () => {
+    setConfigurations([...configurations, { 
+      configType: 'Apartment', 
+      bhk: '2 BHK', 
+      carpetArea: '', 
+      priceValue: '' 
+    }]);
+  };
+
+  const updateConfiguration = (index, field, value) => {
+    const updated = [...configurations];
+    updated[index][field] = value;
+    setConfigurations(updated);
+  };
+
+  const removeConfiguration = (index) => {
+    const updated = [...configurations];
+    updated.splice(index, 1);
+    setConfigurations(updated);
+  };
+
   // ── Validation ───────────────────────────────────────────────────────────────
   const validate = (forStep) => {
     const e = {};
+    
     if (forStep === 1) {
-      if (!sellerType)                                  e.sellerType    = "Please select how you are listing.";
-      if (!propertyType)                                e.propertyType  = "Please select a property type.";
-      if (!contactNumber || !/^\d{10}$/.test(contactNumber))
-                                                        e.contactNumber = "Enter a valid 10-digit mobile number.";
-      if (sellerType === "Agent" && !agentReraId.trim()) e.agentReraId  = "Agent RERA ID is required.";
+      if (!listingCategory)                                 e.listingCategory = "Please select what you are listing.";
+      if (!sellerType)                                      e.sellerType    = "Please select how you are listing.";
+      if (listingCategory === "Unit" && !propertyType)      e.propertyType  = "Please select a property type.";
+      if (!contactNumber || !/^\d{10}$/.test(contactNumber))e.contactNumber = "Enter a valid 10-digit mobile number.";
+      if (sellerType === "Agent" && !agentReraId.trim())    e.agentReraId   = "Agent RERA ID is required.";
     }
+    
     if (forStep === 2) {
       if (!city)            e.city     = "Please select a city.";
-      if (!locality.trim()) e.locality = "Please enter the locality / area.";
+      if (!locality.trim()) e.locality = "Please enter the locality / address.";
     }
+    
     if (forStep === 3) {
-      if (isResidential) {
-        if (!bedrooms)   e.bedrooms   = "Please select number of bedrooms.";
-        if (!carpetArea) e.carpetArea = "Please enter carpet area.";
+      if (listingCategory === 'Project') {
+        if (!builderName.trim()) e.builderName = "Builder name is required.";
+        if (configurations.length === 0) e.configurations = "Please add at least one configuration.";
+        else {
+          configurations.forEach((conf, idx) => {
+            if (!conf.carpetArea) e[`configArea_${idx}`] = "Area required";
+            if (!conf.priceValue) e[`configPrice_${idx}`] = "Price required";
+          });
+        }
+      } else {
+        if (isResidential) {
+          if (!bedrooms)   e.bedrooms   = "Please select number of bedrooms.";
+          if (!carpetArea) e.carpetArea = "Please enter carpet area.";
+        }
+        if (isLand && !plotArea)  e.plotArea  = "Please enter plot area.";
+        if (isCommercial && !commArea) e.commArea  = "Please enter carpet area.";
       }
-      if (isLand      && !plotArea)  e.plotArea  = "Please enter plot area.";
-      if (isCommercial && !commArea) e.commArea  = "Please enter carpet area.";
     }
+    
     if (forStep === 4) {
-      if (!price) {
-        e.price = isRent ? "Please enter monthly rent." : "Please enter the expected price.";
-      }
-      if (!isRent) {
-        if (isResale === null)  e.isResale = "Please indicate if this is a resale property.";
-        if (isResale === false && !reraId.trim()) e.reraId = "Project RERA ID is required for new properties.";
+      if (listingCategory === 'Project') {
+        if (!propTitle.trim()) e.propTitle = "Project name / Title is required.";
+        if (!reraId.trim()) e.reraId = "RERA ID is mandatory for new projects.";
+      } else {
+        if (!price) e.price = isRent ? "Please enter monthly rent." : "Please enter the expected price.";
+        if (!isRent) {
+          if (isResale === null)  e.isResale = "Please indicate if this is a resale property.";
+          if (isResale === false && !reraId.trim()) e.reraId = "Project RERA ID is required for new properties.";
+        }
       }
     }
+    
     setErrors(e);
+    
+    // Auto-scroll to first error
+    const firstErrorKey = Object.keys(e)[0];
+    if (firstErrorKey && fieldRefs.current[firstErrorKey]) {
+      fieldRefs.current[firstErrorKey].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     return Object.keys(e).length === 0;
   };
 
@@ -237,8 +344,11 @@ export default function PostProperty() {
     if (step === 1) {
       setIsLoading(true);
       try {
+        const finalPropertyType = listingCategory === 'Project' ? 'Mixed-Use Project' : propertyType;
+        
         const res = await apiClient.post("/api/properties", {
-          propertyType,
+          listingCategory,
+          propertyType: finalPropertyType,
           transactionType, 
           contactNumber,
           sellerType,
@@ -273,90 +383,90 @@ export default function PostProperty() {
       const fd = new FormData();
       fd.append("location", JSON.stringify({ city, address: locality, state: stateName, pincode }));
 
-      if (isResidential) {
-        fd.append("residentialDetails", JSON.stringify({
-          bedrooms: parseInt(bedrooms),
-          bathrooms: parseInt(bathrooms) || undefined,
-          furnishingStatus: furnishing,
-          carpetArea: parseInt(carpetArea),
-          floorNumber: parseInt(floorNo) || undefined,
-          totalFloors: parseInt(totalFloors) || undefined,
+      if (listingCategory === 'Project') {
+        fd.append("projectDetails", JSON.stringify({
+          builderName,
+          projectStatus,
+          possessionDate: possessionDate || undefined,
+          totalTowers: parseInt(totalTowers) || 0,
+          totalUnits: parseInt(totalUnits) || 0,
+          configurations: configurations.map(c => ({
+            configType: c.configType,
+            bhk: c.bhk,
+            carpetArea: Number(c.carpetArea),
+            priceValue: Number(c.priceValue)
+          }))
         }));
-      } else if (isLand) {
-        fd.append("plotDetails", JSON.stringify({ plotArea: parseInt(plotArea), facing: facing || undefined, gatedCommunity: isGated }));
-      } else if (isCommercial) {
-        fd.append("commercialDetails", JSON.stringify({
-          carpetArea: parseInt(commArea),
-          floorNumber: parseInt(commFloor) || undefined,
-          washrooms: parseInt(washrooms) || 0,
-          furnishingStatus: commFurnish,
-        }));
-      }
+      } else {
+        if (isResidential) {
+          fd.append("residentialDetails", JSON.stringify({
+            bedrooms: parseInt(bedrooms),
+            bathrooms: parseInt(bathrooms) || undefined,
+            furnishingStatus: furnishing,
+            carpetArea: parseInt(carpetArea),
+            floorNumber: parseInt(floorNo) || undefined,
+            totalFloors: parseInt(totalFloors) || undefined,
+          }));
+        } else if (isLand) {
+          fd.append("plotDetails", JSON.stringify({ plotArea: parseInt(plotArea), facing: facing || undefined, gatedCommunity: isGated }));
+        } else if (isCommercial) {
+          fd.append("commercialDetails", JSON.stringify({
+            carpetArea: parseInt(commArea),
+            floorNumber: parseInt(commFloor) || undefined,
+            washrooms: parseInt(washrooms) || 0,
+            furnishingStatus: commFurnish,
+          }));
+        }
 
-      const priceObj = { value: parseInt(price), currency: "INR", isNegotiable };
-      if (isRent) {
-        if (securityDeposit) priceObj.securityDeposit = parseInt(securityDeposit);
-        priceObj.maintenanceIncluded = maintenanceIncluded;
+        const priceObj = { value: parseInt(price), currency: "INR", isNegotiable };
+        if (isRent) {
+          if (securityDeposit) priceObj.securityDeposit = parseInt(securityDeposit);
+          priceObj.maintenanceIncluded = maintenanceIncluded;
+        }
+        fd.append("price", JSON.stringify(priceObj));
+        
+        fd.append("isResaleProperty", String(isResale));
       }
-      fd.append("price", JSON.stringify(priceObj));
 
       if (propTitle)        fd.append("title",            propTitle);
       if (description)      fd.append("description",      description);
-      if (project)          fd.append("project",          project);
+      if (project)          fd.append("project",          project); // Society name mapping
       if (amenities.length) fd.append("amenities",        JSON.stringify(amenities));
-      
-      if (!isRent) {
-        fd.append("isResaleProperty", String(isResale));
-        if (isResale === false && reraId) fd.append("reraId", reraId.toUpperCase());
-      }
+      if (reraId)           fd.append("reraId",           reraId.toUpperCase());
       
       fd.append("formStep",   "4");
-      fd.append("formStatus", "published");
-      // Reorder images so the selected cover is always first
+      fd.append("formStatus", "submitted"); // Auto-submits for admin review
+
+      // Images Processing
       const orderedImages = coverIndex > 0
-        ? [
-            images[coverIndex],
-            ...images.slice(0, coverIndex),
-            ...images.slice(coverIndex + 1),
-          ]
+        ? [ images[coverIndex], ...images.slice(0, coverIndex), ...images.slice(coverIndex + 1) ]
         : images;
       orderedImages.forEach((img) => fd.append("images", img.file));
+
+      // Project Media Processing
+      if (listingCategory === 'Project') {
+        if (masterPlanImage) fd.append("masterPlanImage", masterPlanImage);
+        if (brochureFile)    fd.append("brochureUrl",     brochureFile);
+      }
 
       const res = await apiClient.put(`/api/properties/${propertyId}`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      if (res.data.success) setStep(5);
-      else toast.error(res.data.message || "Submission failed.");
+      
+      if (res.data.success) {
+        setStep(5);
+      } else {
+        toast.error(res.data.message || "Submission failed.");
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Upload failed. Please try again.");
+      console.error("Submission Error Details:", err.response?.data);
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || "Upload failed. Check the form and try again.";
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleImageChange = (e) => {
-    Array.from(e.target.files).forEach((file) => {
-      const r = new FileReader();
-      r.onload = (ev) => setImages((prev) => [...prev, { file, preview: ev.target.result }]);
-      r.readAsDataURL(file);
-    });
-  };
-  const removeImage = (i) => {
-    setImages((prev) => prev.filter((_, idx) => idx !== i));
-    // If we removed the cover, reset to first image
-    setCoverIndex((prev) => (i === prev ? 0 : i < prev ? prev - 1 : prev));
-  };
-  const setCover = (i) => setCoverIndex(i);
-  const toggleAmenity  = (name) =>
-    setAmenities((prev) => prev.includes(name) ? prev.filter((a) => a !== name) : [...prev, name]);
-
-  const formatINR = (val) => {
-    const n = parseInt(val);
-    if (!n || isNaN(n)) return null;
-    if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
-    if (n >= 100_000)    return `₹${(n / 100_000).toFixed(2)} Lakh`;
-    return `₹${n.toLocaleString("en-IN")}`;
-  };
 
   // ─────────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -423,7 +533,7 @@ export default function PostProperty() {
               </p>
 
               {/* Transaction Type Toggle (Sell / Rent) */}
-              <div className="bg-slate-100 p-1.5 rounded-xl flex items-center mb-8">
+              <div className="bg-slate-100 p-1.5 rounded-xl flex items-center mb-6">
                 <button
                   type="button"
                   onClick={() => setTransactionType("Sale")}
@@ -442,6 +552,31 @@ export default function PostProperty() {
                 >
                   Rent
                 </button>
+              </div>
+
+              {/* Listing Category Selection */}
+              <div ref={setRef('listingCategory')} className="mb-8">
+                <FieldLabel required>What are you listing?</FieldLabel>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button 
+                    onClick={() => { setListingCategory('Unit'); setErrors(e => ({...e, listingCategory: ''})); }}
+                    className={`p-4 text-left border-2 rounded-2xl transition-all ${listingCategory === 'Unit' ? 'border-[#0A1628] bg-slate-50 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}
+                  >
+                    <Home size={20} className={listingCategory === 'Unit' ? "text-[#0A1628] mb-2" : "text-slate-400 mb-2"} />
+                    <h3 className={`font-bold text-sm ${listingCategory === 'Unit' ? 'text-[#0A1628]' : 'text-slate-700'}`}>Single Unit / Resale</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Individual apartments, houses, or plots.</p>
+                  </button>
+
+                  <button 
+                    onClick={() => { setListingCategory('Project'); setPropertyType('Mixed-Use Project'); setErrors(e => ({...e, listingCategory: ''})); }}
+                    className={`p-4 text-left border-2 rounded-2xl transition-all ${listingCategory === 'Project' ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}
+                  >
+                    <Building2 size={20} className={listingCategory === 'Project' ? "text-blue-600 mb-2" : "text-slate-400 mb-2"} />
+                    <h3 className={`font-bold text-sm ${listingCategory === 'Project' ? 'text-blue-700' : 'text-slate-700'}`}>New Builder Project</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Complexes with multiple configurations.</p>
+                  </button>
+                </div>
+                <FieldError msg={errors.listingCategory} />
               </div>
 
               {/* User profile chip */}
@@ -463,7 +598,7 @@ export default function PostProperty() {
               </div>
 
               {/* Contact number */}
-              <div className="mb-5">
+              <div ref={setRef('contactNumber')} className="mb-5">
                 <FieldLabel required>Contact number for this listing</FieldLabel>
                 {contactLocked ? (
                   <div className="flex gap-2 items-center">
@@ -493,6 +628,7 @@ export default function PostProperty() {
                         maxLength={10}
                         placeholder="98765 43210"
                         value={contactNumber}
+                        hasError={!!errors.contactNumber}
                         onChange={(e) => setContactNumber(e.target.value.replace(/\D/g, ""))}
                       />
                     </div>
@@ -509,7 +645,7 @@ export default function PostProperty() {
               <Divider label="I am listing as" />
 
               {/* Seller type */}
-              <div className="grid grid-cols-3 gap-3 mb-1">
+              <div ref={setRef('sellerType')} className="grid grid-cols-3 gap-3 mb-1">
                 {SELLER_TYPES.map(({ id, icon: Icon, label, desc }) => (
                   <button
                     key={id}
@@ -534,7 +670,7 @@ export default function PostProperty() {
 
               {/* Agent RERA block */}
               {sellerType === "Agent" && (
-                <div className="mt-4 space-y-3">
+                <div ref={setRef('agentReraId')} className="mt-4 space-y-3">
                   <Callout type="warning">
                     As a licensed agent, your RERA ID is mandatory and will be verified before any listing goes live.
                   </Callout>
@@ -543,6 +679,7 @@ export default function PostProperty() {
                     <InputBase
                       placeholder="e.g. A52100012345"
                       value={agentReraId}
+                      hasError={!!errors.agentReraId}
                       onChange={(e) => setAgentReraId(e.target.value.toUpperCase())}
                       className="uppercase tracking-widest font-mono"
                     />
@@ -551,33 +688,36 @@ export default function PostProperty() {
                 </div>
               )}
 
-              <Divider label="Property type" />
+              {/* Only show Property Type selection if it's a Single Unit */}
+              {listingCategory === 'Unit' && (
+                <>
+                  <Divider label="Property type" />
+                  <div ref={setRef('propertyType')} className="grid grid-cols-2 gap-3 mb-1">
+                    {PROPERTY_TYPES.map(({ id, icon: Icon, label, desc, accent, iconColor }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => { setPropertyType(id); setErrors((e) => ({ ...e, propertyType: "" })); }}
+                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all duration-200
+                          ${propertyType === id
+                            ? `${accent} shadow-sm`
+                            : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}
+                      >
+                        <div className={`shrink-0 transition-colors ${propertyType === id ? iconColor : "text-slate-400"}`}>
+                          <Icon size={24} strokeWidth={1.5} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold text-slate-800 truncate">{label}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">{desc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <FieldError msg={errors.propertyType} />
+                </>
+              )}
 
-              {/* Property type grid */}
-              <div className="grid grid-cols-2 gap-3 mb-1">
-                {PROPERTY_TYPES.map(({ id, icon: Icon, label, desc, accent, iconColor }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => { setPropertyType(id); setErrors((e) => ({ ...e, propertyType: "" })); }}
-                    className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all duration-200
-                      ${propertyType === id
-                        ? `${accent} shadow-sm`
-                        : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}
-                  >
-                    <div className={`shrink-0 transition-colors ${propertyType === id ? iconColor : "text-slate-400"}`}>
-                      <Icon size={24} strokeWidth={1.5} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-slate-800 truncate">{label}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">{desc}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              <FieldError msg={errors.propertyType} />
-
-              <div className="mt-6">
+              <div className="mt-8">
                 <button
                   onClick={handleNext}
                   disabled={isLoading}
@@ -602,20 +742,21 @@ export default function PostProperty() {
                 <p className="text-sm text-slate-400">Location is the biggest factor for buyers.</p>
               </div>
 
-              <div>
+              <div ref={setRef('city')}>
                 <FieldLabel required>City</FieldLabel>
-                <SelectBase value={city} onChange={(e) => setCity(e.target.value)}>
+                <SelectBase value={city} onChange={(e) => setCity(e.target.value)} hasError={!!errors.city}>
                   <option value="">Select city</option>
                   {CITIES.map((c) => <option key={c}>{c}</option>)}
                 </SelectBase>
                 <FieldError msg={errors.city} />
               </div>
 
-              <div>
-                <FieldLabel required>Locality / Area</FieldLabel>
+              <div ref={setRef('locality')}>
+                <FieldLabel required>Locality / Area / Address</FieldLabel>
                 <InputBase
                   placeholder="e.g. Cidco N-4, Baner, Wakad"
                   value={locality}
+                  hasError={!!errors.locality}
                   onChange={(e) => setLocality(e.target.value)}
                 />
                 <FieldError msg={errors.locality} />
@@ -637,167 +778,301 @@ export default function PostProperty() {
                 </div>
               </div>
 
-              <div>
-                <FieldLabel>Project / Society / Building</FieldLabel>
-                <InputBase
-                  placeholder="e.g. Godrej Hill, Prestige Towers (optional)"
-                  value={project}
-                  onChange={(e) => setProject(e.target.value)}
-                />
-              </div>
+              {listingCategory === 'Unit' && (
+                <div>
+                  <FieldLabel>Project / Society / Building</FieldLabel>
+                  <InputBase
+                    placeholder="e.g. Godrej Hill, Prestige Towers (optional)"
+                    value={project}
+                    onChange={(e) => setProject(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
           )}
 
           {/* ═══════════════════════════════════════════════════
-              STEP 3 — Property details (dynamic per type)
+              STEP 3 — Details (Dynamic based on Category)
           ═══════════════════════════════════════════════════ */}
           {step === 3 && (
             <div className="p-6 space-y-4">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-1">Tell us about it</h2>
-                <p className="text-sm text-slate-400">More detail = more serious {isRent ? 'renters' : 'buyers'}.</p>
+                <p className="text-sm text-slate-400">Detailed listings get more attention.</p>
               </div>
 
-              {/* Residential */}
-              {isResidential && (
-                <>
-                  <div>
-                    <FieldLabel required>Bedrooms</FieldLabel>
-                    <div className="flex flex-wrap gap-2">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <button
-                          key={n}
-                          type="button"
-                          onClick={() => setBedrooms(String(n))}
-                          className={`px-5 py-2.5 rounded-xl text-sm font-medium border-2 transition-all
-                            ${bedrooms === String(n)
-                              ? "bg-[#0A1628] text-white border-[#0A1628]"
-                              : "border-slate-200 text-slate-600 hover:border-slate-300"}`}
-                        >
-                          {n === 5 ? "5+ BHK" : `${n} BHK`}
-                        </button>
-                      ))}
-                    </div>
-                    <FieldError msg={errors.bedrooms} />
+              {/* ─── PROJECT DETAILS FLOW ─── */}
+              {listingCategory === 'Project' && (
+                <div className="space-y-6">
+                  <div ref={setRef('builderName')}>
+                    <FieldLabel required>Builder / Developer Name</FieldLabel>
+                    <InputBase placeholder="e.g. Prestige Group" value={builderName} onChange={e => setBuilderName(e.target.value)} hasError={!!errors.builderName} />
+                    <FieldError msg={errors.builderName} />
                   </div>
-
+                  
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <FieldLabel>Bathrooms</FieldLabel>
-                      <SelectBase value={bathrooms} onChange={(e) => setBathrooms(e.target.value)}>
-                        <option value="">Select</option>
-                        {[1, 2, 3, "4+"].map((n) => <option key={n}>{n}</option>)}
+                      <FieldLabel>Project Status</FieldLabel>
+                      <SelectBase value={projectStatus} onChange={e => setProjectStatus(e.target.value)}>
+                        <option value="Under Construction">Under Construction</option>
+                        <option value="Pre-Launch">Pre-Launch</option>
+                        <option value="Ready to Move">Ready to Move</option>
                       </SelectBase>
                     </div>
                     <div>
-                      <FieldLabel>Furnishing</FieldLabel>
-                      <SelectBase value={furnishing} onChange={(e) => setFurnishing(e.target.value)}>
-                        <option value="Unfurnished">Unfurnished</option>
-                        <option value="Semi-Furnished">Semi-Furnished</option>
-                        <option value="Furnished">Fully Furnished</option>
-                      </SelectBase>
+                      <FieldLabel>Possession Date</FieldLabel>
+                      <InputBase type="date" value={possessionDate} onChange={e => setPossessionDate(e.target.value)} />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <FieldLabel required>Carpet area</FieldLabel>
-                      <div className="relative">
-                        <InputBase
-                          type="number"
-                          placeholder="850"
-                          value={carpetArea}
-                          onChange={(e) => setCarpetArea(e.target.value)}
-                          className="pr-14"
-                        />
-                        <span className="absolute right-3.5 top-3 text-xs text-slate-400 pointer-events-none">sq.ft</span>
+                      <FieldLabel>Total Towers</FieldLabel>
+                      <InputBase type="number" placeholder="e.g. 5" value={totalTowers} onChange={e => setTotalTowers(e.target.value)} />
+                    </div>
+                    <div>
+                      <FieldLabel>Total Units</FieldLabel>
+                      <InputBase type="number" placeholder="e.g. 500" value={totalUnits} onChange={e => setTotalUnits(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <Divider label="Project Configurations" />
+                  
+                  <div ref={setRef('configurations')}>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs text-slate-500 font-semibold">Add configurations available in this project</p>
+                      <button type="button" onClick={addConfiguration} className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors bg-blue-50 px-3 py-1.5 rounded-lg">
+                        <Plus size={14} /> Add Config
+                      </button>
+                    </div>
+
+                    {configurations.length === 0 ? (
+                      <div className="text-center py-6 bg-slate-50 border border-slate-200 border-dashed rounded-xl">
+                        <p className="text-xs text-slate-400 mb-2">No configurations added.</p>
                       </div>
-                      <FieldError msg={errors.carpetArea} />
-                    </div>
-                    <div>
-                      <FieldLabel>Floor no.</FieldLabel>
-                      <InputBase type="number" placeholder="4" value={floorNo} onChange={(e) => setFloorNo(e.target.value)} />
-                    </div>
-                  </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {configurations.map((config, index) => {
+                          const isResiConfig = ['Apartment', 'House'].includes(config.configType);
+                          return (
+                            <div key={index} className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative group">
+                              <button type="button" onClick={() => removeConfiguration(index)} className="absolute -top-2 -right-2 w-7 h-7 bg-white border border-slate-200 rounded-full flex items-center justify-center text-rose-500 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Trash2 size={12} />
+                              </button>
+                              
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Property Type</label>
+                                  <SelectBase 
+                                    value={config.configType} 
+                                    onChange={(e) => {
+                                      updateConfiguration(index, 'configType', e.target.value);
+                                      updateConfiguration(index, 'bhk', ['Apartment', 'House'].includes(e.target.value) ? '2 BHK' : '');
+                                    }} 
+                                    className="h-10 text-xs"
+                                  >
+                                    <option value="Apartment">Apartment</option>
+                                    <option value="House">Villa / House</option>
+                                    <option value="Land">Plot / Land</option>
+                                    <option value="Shop">Shop</option>
+                                    <option value="Office">Office Space</option>
+                                  </SelectBase>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                                    {isResiConfig ? "Select BHK" : "Variant Name"}
+                                  </label>
+                                  {isResiConfig ? (
+                                    <SelectBase value={config.bhk} onChange={(e) => updateConfiguration(index, 'bhk', e.target.value)} className="h-10 text-xs">
+                                      {BHK_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                    </SelectBase>
+                                  ) : (
+                                    <InputBase placeholder="e.g. Ground Floor Shop" value={config.bhk} onChange={(e) => updateConfiguration(index, 'bhk', e.target.value)} className="h-10 text-xs" />
+                                  )}
+                                </div>
+                              </div>
 
-                  <div>
-                    <FieldLabel>Total floors in building</FieldLabel>
-                    <InputBase type="number" placeholder="12" value={totalFloors} onChange={(e) => setTotalFloors(e.target.value)} />
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Carpet Area</label>
+                                  <div className="relative">
+                                    <InputBase type="number" placeholder="1200" value={config.carpetArea} onChange={(e) => updateConfiguration(index, 'carpetArea', e.target.value)} className="h-10 text-xs pr-12" hasError={!!errors[`configArea_${index}`]} />
+                                    <span className="absolute right-3 top-2.5 text-[10px] text-slate-400 pointer-events-none">sq.ft</span>
+                                  </div>
+                                  <FieldError msg={errors[`configArea_${index}`]} />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Starting Price</label>
+                                  <div className="relative flex flex-col">
+                                    <div className="relative">
+                                      <span className="absolute left-3 top-2.5 text-slate-500 font-semibold text-[10px] pointer-events-none">₹</span>
+                                      <InputBase type="number" placeholder="8500000" value={config.priceValue} onChange={(e) => updateConfiguration(index, 'priceValue', e.target.value)} className="h-10 text-xs pl-6" hasError={!!errors[`configPrice_${index}`]} />
+                                    </div>
+                                    {config.priceValue && (
+                                      <span className="text-[10px] font-bold text-emerald-600 mt-1 pl-1">
+                                        {formatINRText(config.priceValue)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <FieldError msg={errors[`configPrice_${index}`]} />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <FieldError msg={errors.configurations} />
                   </div>
-                </>
+                </div>
               )}
 
-              {/* Land */}
-              {isLand && (
+              {/* ─── SINGLE UNIT DETAILS FLOW ─── */}
+              {listingCategory === 'Unit' && (
                 <>
-                  <div>
-                    <FieldLabel required>Plot area</FieldLabel>
-                    <div className="relative">
-                      <InputBase type="number" placeholder="2400" value={plotArea} onChange={(e) => setPlotArea(e.target.value)} className="pr-14" />
-                      <span className="absolute right-3.5 top-3 text-xs text-slate-400 pointer-events-none">sq.ft</span>
-                    </div>
-                    <FieldError msg={errors.plotArea} />
-                  </div>
-                  <div>
-                    <FieldLabel>Facing direction</FieldLabel>
-                    <SelectBase value={facing} onChange={(e) => setFacing(e.target.value)}>
-                      <option value="">Select direction</option>
-                      {["North","South","East","West","North-East","North-West","South-East","South-West"].map((d) => (
-                        <option key={d}>{d}</option>
-                      ))}
-                    </SelectBase>
-                  </div>
-                  <div>
-                    <FieldLabel>Gated community</FieldLabel>
-                    <div className="flex gap-2">
-                      {[true, false].map((v) => (
-                        <button key={String(v)} type="button" onClick={() => setIsGated(v)}
-                          className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all
-                            ${isGated === v
-                              ? (v ? "bg-emerald-50 border-emerald-400 text-emerald-700" : "bg-blue-50 border-blue-400 text-blue-700")
-                              : "border-slate-200 text-slate-500 hover:border-slate-300"}`}>
-                          {v ? "Yes" : "No"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {/* Residential */}
+                  {isResidential && (
+                    <>
+                      <div ref={setRef('bedrooms')}>
+                        <FieldLabel required>Bedrooms</FieldLabel>
+                        <div className="flex flex-wrap gap-2">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => setBedrooms(String(n))}
+                              className={`px-5 py-2.5 rounded-xl text-sm font-medium border-2 transition-all
+                                ${bedrooms === String(n)
+                                  ? "bg-[#0A1628] text-white border-[#0A1628]"
+                                  : "border-slate-200 text-slate-600 hover:border-slate-300"}`}
+                            >
+                              {n === 5 ? "5+ BHK" : `${n} BHK`}
+                            </button>
+                          ))}
+                        </div>
+                        <FieldError msg={errors.bedrooms} />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <FieldLabel>Bathrooms</FieldLabel>
+                          <SelectBase value={bathrooms} onChange={(e) => setBathrooms(e.target.value)}>
+                            <option value="">Select</option>
+                            {[1, 2, 3, "4+"].map((n) => <option key={n}>{n}</option>)}
+                          </SelectBase>
+                        </div>
+                        <div>
+                          <FieldLabel>Furnishing</FieldLabel>
+                          <SelectBase value={furnishing} onChange={(e) => setFurnishing(e.target.value)}>
+                            <option value="Unfurnished">Unfurnished</option>
+                            <option value="Semi-Furnished">Semi-Furnished</option>
+                            <option value="Furnished">Fully Furnished</option>
+                          </SelectBase>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div ref={setRef('carpetArea')}>
+                          <FieldLabel required>Carpet area</FieldLabel>
+                          <div className="relative">
+                            <InputBase
+                              type="number"
+                              placeholder="850"
+                              value={carpetArea}
+                              hasError={!!errors.carpetArea}
+                              onChange={(e) => setCarpetArea(e.target.value)}
+                              className="pr-14"
+                            />
+                            <span className="absolute right-3.5 top-3 text-xs text-slate-400 pointer-events-none">sq.ft</span>
+                          </div>
+                          <FieldError msg={errors.carpetArea} />
+                        </div>
+                        <div>
+                          <FieldLabel>Floor no.</FieldLabel>
+                          <InputBase type="number" placeholder="4" value={floorNo} onChange={(e) => setFloorNo(e.target.value)} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <FieldLabel>Total floors in building</FieldLabel>
+                        <InputBase type="number" placeholder="12" value={totalFloors} onChange={(e) => setTotalFloors(e.target.value)} />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Land */}
+                  {isLand && (
+                    <>
+                      <div ref={setRef('plotArea')}>
+                        <FieldLabel required>Plot area</FieldLabel>
+                        <div className="relative">
+                          <InputBase type="number" placeholder="2400" value={plotArea} onChange={(e) => setPlotArea(e.target.value)} className="pr-14" hasError={!!errors.plotArea} />
+                          <span className="absolute right-3.5 top-3 text-xs text-slate-400 pointer-events-none">sq.ft</span>
+                        </div>
+                        <FieldError msg={errors.plotArea} />
+                      </div>
+                      <div>
+                        <FieldLabel>Facing direction</FieldLabel>
+                        <SelectBase value={facing} onChange={(e) => setFacing(e.target.value)}>
+                          <option value="">Select direction</option>
+                          {["North","South","East","West","North-East","North-West","South-East","South-West"].map((d) => (
+                            <option key={d}>{d}</option>
+                          ))}
+                        </SelectBase>
+                      </div>
+                      <div>
+                        <FieldLabel>Gated community</FieldLabel>
+                        <div className="flex gap-2">
+                          {[true, false].map((v) => (
+                            <button key={String(v)} type="button" onClick={() => setIsGated(v)}
+                              className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all
+                                ${isGated === v
+                                  ? (v ? "bg-emerald-50 border-emerald-400 text-emerald-700" : "bg-blue-50 border-blue-400 text-blue-700")
+                                  : "border-slate-200 text-slate-500 hover:border-slate-300"}`}>
+                              {v ? "Yes" : "No"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Commercial */}
+                  {isCommercial && (
+                    <>
+                      <div ref={setRef('commArea')}>
+                        <FieldLabel required>Carpet area</FieldLabel>
+                        <div className="relative">
+                          <InputBase type="number" placeholder="1200" value={commArea} onChange={(e) => setCommArea(e.target.value)} className="pr-14" hasError={!!errors.commArea} />
+                          <span className="absolute right-3.5 top-3 text-xs text-slate-400 pointer-events-none">sq.ft</span>
+                        </div>
+                        <FieldError msg={errors.commArea} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <FieldLabel>Floor no.</FieldLabel>
+                          <InputBase type="number" placeholder="2" value={commFloor} onChange={(e) => setCommFloor(e.target.value)} />
+                        </div>
+                        <div>
+                          <FieldLabel>Washrooms</FieldLabel>
+                          <InputBase type="number" placeholder="1" value={washrooms} onChange={(e) => setWashrooms(e.target.value)} />
+                        </div>
+                      </div>
+                      <div>
+                        <FieldLabel>Furnishing</FieldLabel>
+                        <SelectBase value={commFurnish} onChange={(e) => setCommFurnish(e.target.value)}>
+                          <option value="Bare Shell">Bare Shell</option>
+                          <option value="Unfurnished">Unfurnished</option>
+                          <option value="Semi-Furnished">Semi-Furnished</option>
+                          <option value="Furnished">Furnished</option>
+                        </SelectBase>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 
-              {/* Commercial */}
-              {isCommercial && (
-                <>
-                  <div>
-                    <FieldLabel required>Carpet area</FieldLabel>
-                    <div className="relative">
-                      <InputBase type="number" placeholder="1200" value={commArea} onChange={(e) => setCommArea(e.target.value)} className="pr-14" />
-                      <span className="absolute right-3.5 top-3 text-xs text-slate-400 pointer-events-none">sq.ft</span>
-                    </div>
-                    <FieldError msg={errors.commArea} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <FieldLabel>Floor no.</FieldLabel>
-                      <InputBase type="number" placeholder="2" value={commFloor} onChange={(e) => setCommFloor(e.target.value)} />
-                    </div>
-                    <div>
-                      <FieldLabel>Washrooms</FieldLabel>
-                      <InputBase type="number" placeholder="1" value={washrooms} onChange={(e) => setWashrooms(e.target.value)} />
-                    </div>
-                  </div>
-                  <div>
-                    <FieldLabel>Furnishing</FieldLabel>
-                    <SelectBase value={commFurnish} onChange={(e) => setCommFurnish(e.target.value)}>
-                      <option value="Bare Shell">Bare Shell</option>
-                      <option value="Unfurnished">Unfurnished</option>
-                      <option value="Semi-Furnished">Semi-Furnished</option>
-                      <option value="Furnished">Furnished</option>
-                    </SelectBase>
-                  </div>
-                </>
-              )}
-
-              {/* Amenities */}
+              {/* Amenities - Shared for both Projects and Units */}
               <Divider label="Amenities" />
               <div className="flex flex-wrap gap-2">
                 {AMENITIES.map((a) => (
@@ -814,95 +1089,132 @@ export default function PostProperty() {
           )}
 
           {/* ═══════════════════════════════════════════════════
-              STEP 4 — Pricing, RERA, Photos
+              STEP 4 — Pricing, RERA, Photos & Media
           ═══════════════════════════════════════════════════ */}
           {step === 4 && (
             <div className="p-6 space-y-4">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-1">Set price & photos</h2>
-                <p className="text-sm text-slate-400">Almost there — {isRent ? 'set the rent' : 'price it right'} and add photos.</p>
+                <h2 className="text-2xl font-bold text-slate-900 mb-1">Final Details & Media</h2>
+                <p className="text-sm text-slate-400">Finish setting up your {listingCategory === 'Project' ? 'project' : 'listing'}.</p>
               </div>
 
-              {/* Price / Rent */}
-              <div className={isRent ? "grid grid-cols-2 gap-3" : ""}>
-                <div>
-                  <FieldLabel required>{isRent ? "Monthly Rent" : "Expected price"}</FieldLabel>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-3 text-slate-500 font-semibold text-sm pointer-events-none">₹</span>
-                    <InputBase type="number" placeholder={isRent ? "20000" : "4500000"} value={price} onChange={(e) => setPrice(e.target.value)} className="pl-7" />
-                  </div>
-                  {!isRent && price && (
-                    <div className="mt-2 px-3.5 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-sm flex items-center gap-2">
-                      <span className="font-bold text-amber-800">{formatINR(price)}</span>
-                      <span className="text-amber-600 text-xs">(₹{parseInt(price || 0).toLocaleString("en-IN")})</span>
-                    </div>
-                  )}
-                  <FieldError msg={errors.price} />
-                </div>
-
-                {isRent && (
-                  <div>
-                    <FieldLabel>Security Deposit</FieldLabel>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-3 text-slate-500 font-semibold text-sm pointer-events-none">₹</span>
-                      <InputBase type="number" placeholder="50000" value={securityDeposit} onChange={(e) => setSecurityDeposit(e.target.value)} className="pl-7" />
-                    </div>
-                  </div>
-                )}
+              {/* Title / Description */}
+              <div ref={setRef('propTitle')}>
+                <FieldLabel required>{listingCategory === 'Project' ? 'Project Headline' : 'Listing Headline'}</FieldLabel>
+                <InputBase
+                  placeholder={listingCategory === 'Project' ? "e.g. Premium 2 & 3 BHKs in Godrej Hill" : "e.g. Spacious 2 BHK with parking in Cidco"}
+                  maxLength={100}
+                  value={propTitle}
+                  hasError={!!errors.propTitle}
+                  onChange={(e) => setPropTitle(e.target.value)}
+                />
+                <FieldError msg={errors.propTitle} />
+              </div>
+              
+              <div>
+                <FieldLabel>Description</FieldLabel>
+                <textarea
+                  rows={4}
+                  maxLength={3000}
+                  placeholder="Highlight key features, nearby landmarks, unique selling points…"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 bg-white
+                    focus:outline-none focus:ring-2 focus:ring-[#0A1628]/20 focus:border-[#0A1628]
+                    placeholder:text-slate-300 resize-none transition-all"
+                />
               </div>
 
-              {/* Negotiable & Maintenance */}
-              <div className="space-y-2 mt-4">
-                <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl bg-slate-50">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-700">Price is negotiable</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Allow {isRent ? 'renters' : 'buyers'} to make offers</p>
-                  </div>
-                  <Toggle checked={isNegotiable} onChange={setIsNegotiable} />
-                </div>
-                
-                {isRent && (
-                  <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl bg-slate-50">
+              {/* Single Unit Pricing Block */}
+              {listingCategory === 'Unit' && (
+                <>
+                  <div className={isRent ? "grid grid-cols-2 gap-3" : ""} ref={setRef('price')}>
                     <div>
-                      <p className="text-sm font-semibold text-slate-700">Maintenance included</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Rent includes society maintenance fees</p>
+                      <FieldLabel required>{isRent ? "Monthly Rent" : "Expected price"}</FieldLabel>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-3 text-slate-500 font-semibold text-sm pointer-events-none">₹</span>
+                        <InputBase type="number" placeholder={isRent ? "20000" : "4500000"} value={price} onChange={(e) => setPrice(e.target.value)} className="pl-7" hasError={!!errors.price} />
+                      </div>
+                      {price && (
+                        <div className="mt-1 pl-1">
+                          <span className="text-[10px] font-bold text-emerald-600">{formatINRText(price)}</span>
+                        </div>
+                      )}
+                      <FieldError msg={errors.price} />
                     </div>
-                    <Toggle checked={maintenanceIncluded} onChange={setMaintenanceIncluded} />
-                  </div>
-                )}
-              </div>
 
-              {/* Resale / RERA - ONLY SHOW IF SELLING */}
+                    {isRent && (
+                      <div>
+                        <FieldLabel>Security Deposit</FieldLabel>
+                        <div className="relative flex flex-col">
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-3 text-slate-500 font-semibold text-sm pointer-events-none">₹</span>
+                            <InputBase type="number" placeholder="50000" value={securityDeposit} onChange={(e) => setSecurityDeposit(e.target.value)} className="pl-7" />
+                          </div>
+                          {securityDeposit && (
+                            <span className="text-[10px] font-bold text-emerald-600 mt-1 pl-1">{formatINRText(securityDeposit)}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl bg-slate-50">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">Price is negotiable</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Allow {isRent ? 'renters' : 'buyers'} to make offers</p>
+                      </div>
+                      <Toggle checked={isNegotiable} onChange={setIsNegotiable} />
+                    </div>
+                    
+                    {isRent && (
+                      <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl bg-slate-50">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-700">Maintenance included</p>
+                          <p className="text-xs text-slate-400 mt-0.5">Rent includes society maintenance fees</p>
+                        </div>
+                        <Toggle checked={maintenanceIncluded} onChange={setMaintenanceIncluded} />
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* RERA and Resale Status */}
               {!isRent && (
                 <>
-                  <Divider label="Property age" />
-                  <div>
-                    <FieldLabel required>Is this a resale property?</FieldLabel>
-                    <div className="flex gap-2">
-                      {[
-                        { val: true,  label: "Yes, resale",                cls: "bg-emerald-50 border-emerald-400 text-emerald-700" },
-                        { val: false, label: "No, new / under construction", cls: "bg-blue-50 border-blue-400 text-blue-700" },
-                      ].map(({ val, label, cls }) => (
-                        <button key={String(val)} type="button" onClick={() => setIsResale(val)}
-                          className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all
-                            ${isResale === val ? cls : "border-slate-200 text-slate-500 hover:border-slate-300"}`}>
-                          {label}
-                        </button>
-                      ))}
+                  {listingCategory === 'Unit' && (
+                    <div ref={setRef('isResale')}>
+                      <Divider label="Property age" />
+                      <FieldLabel required>Is this a resale property?</FieldLabel>
+                      <div className="flex gap-2">
+                        {[
+                          { val: true,  label: "Yes, resale",                cls: "bg-emerald-50 border-emerald-400 text-emerald-700" },
+                          { val: false, label: "No, new / under construction", cls: "bg-blue-50 border-blue-400 text-blue-700" },
+                        ].map(({ val, label, cls }) => (
+                          <button key={String(val)} type="button" onClick={() => {setIsResale(val); setErrors(e => ({...e, isResale: ''}))}}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all
+                              ${isResale === val ? cls : "border-slate-200 text-slate-500 hover:border-slate-300"}`}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <FieldError msg={errors.isResale} />
                     </div>
-                    <FieldError msg={errors.isResale} />
-                  </div>
+                  )}
 
-                  {isResale === false && (
-                    <div className="space-y-3 mt-4">
+                  {(listingCategory === 'Project' || isResale === false) && (
+                    <div className="space-y-3 mt-4" ref={setRef('reraId')}>
                       <Callout type="warning">
-                        New properties require a project RERA ID before the listing goes live. Check MahaRERA for your project's ID.
+                        New properties & Builder Projects require a valid RERA ID before the listing goes live.
                       </Callout>
                       <div>
                         <FieldLabel required>Project RERA ID</FieldLabel>
                         <InputBase
                           placeholder="e.g. P52100047378"
                           value={reraId}
+                          hasError={!!errors.reraId}
                           onChange={(e) => setReraId(e.target.value.toUpperCase())}
                           className="uppercase tracking-widest font-mono"
                         />
@@ -913,43 +1225,19 @@ export default function PostProperty() {
                 </>
               )}
 
-              {/* Title + description */}
-              <Divider label="Listing details (optional)" />
-              <div>
-                <FieldLabel>Headline / Title</FieldLabel>
-                <InputBase
-                  placeholder="e.g. Spacious 2 BHK with parking in Cidco"
-                  maxLength={100}
-                  value={propTitle}
-                  onChange={(e) => setPropTitle(e.target.value)}
-                />
-                <p className="text-right text-[10px] text-slate-300 mt-1">{propTitle.length}/100</p>
-              </div>
-              <div>
-                <FieldLabel>Description</FieldLabel>
-                <textarea
-                  rows={3}
-                  maxLength={2000}
-                  placeholder="Highlight key features, nearby landmarks, unique selling points…"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 bg-white
-                    focus:outline-none focus:ring-2 focus:ring-[#0A1628]/20 focus:border-[#0A1628]
-                    placeholder:text-slate-300 resize-none transition-all"
-                />
-              </div>
-
-              {/* Photos */}
-              <Divider label="Photos" />
+              {/* Photos & Media */}
+              <Divider label="Photos & Media" />
+              
+              {/* Common Image Upload */}
               <label htmlFor="imgUpload"
                 className="border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center text-center cursor-pointer hover:border-[#0A1628]/40 hover:bg-slate-50 transition-all">
                 <div className="w-12 h-12 bg-[#0A1628] rounded-xl flex items-center justify-center mb-3 shadow-lg shadow-slate-900/10">
                   <UploadCloud size={22} className="text-white" />
                 </div>
-                <p className="text-sm font-semibold text-slate-700 mb-1">Upload property photos</p>
+                <p className="text-sm font-semibold text-slate-700 mb-1">Upload Property Photos</p>
                 <p className="text-xs text-slate-400">Drag & drop or click — JPG, PNG, WEBP</p>
               </label>
-              <input id="imgUpload" type="file" multiple accept="image/*" className="hidden" onChange={handleImageChange} />
+              <input id="imgUpload" type="file" multiple accept="image/*" className="hidden" name="images" onChange={handleFileChange} />
 
               {images.length > 0 && (
                 <div className="space-y-2">
@@ -960,23 +1248,17 @@ export default function PostProperty() {
                     {images.map((img, i) => (
                       <div
                         key={i}
-                        onClick={() => setCover(i)}
+                        onClick={() => setCoverIndex(i)}
                         className={`relative aspect-square rounded-xl overflow-hidden border-2 cursor-pointer transition-all group ${
-                          i === coverIndex
-                            ? 'border-[#0A1628] shadow-lg shadow-[#0A1628]/20'
-                            : 'border-slate-200 hover:border-slate-400'
+                          i === coverIndex ? 'border-[#0A1628] shadow-lg shadow-[#0A1628]/20' : 'border-slate-200 hover:border-slate-400'
                         }`}
                       >
                         <img src={img.preview} alt="" className="w-full h-full object-cover" />
-
-                        {/* Cover badge */}
                         {i === coverIndex && (
                           <div className="absolute bottom-0 left-0 right-0 bg-[#0A1628]/80 text-white text-[9px] font-bold text-center py-1 flex items-center justify-center gap-1">
                             <span>★</span> COVER
                           </div>
                         )}
-
-                        {/* Remove button */}
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); removeImage(i); }}
@@ -989,6 +1271,33 @@ export default function PostProperty() {
                   </div>
                 </div>
               )}
+
+              {/* Project Specific Document Uploads */}
+              {listingCategory === 'Project' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                  <div className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative overflow-hidden group hover:border-blue-300 transition-colors">
+                    <input type="file" name="masterPlanImage" onChange={handleFileChange} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center shrink-0"><MapPin size={20}/></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-700 truncate">Master Plan Image</p>
+                        <p className="text-[10px] text-slate-500 truncate">{masterPlanImage ? masterPlanImage.name : 'Upload overview image'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border border-slate-200 rounded-xl bg-slate-50 relative overflow-hidden group hover:border-emerald-300 transition-colors">
+                    <input type="file" name="brochureFile" onChange={handleFileChange} accept=".pdf" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center shrink-0"><FileText size={20}/></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-700 truncate">Project Brochure</p>
+                        <p className="text-[10px] text-slate-500 truncate">{brochureFile ? brochureFile.name : 'Upload PDF file'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -996,13 +1305,13 @@ export default function PostProperty() {
               STEP 5 — Success
           ═══════════════════════════════════════════════════ */}
           {step === 5 && (
-            <div className="p-10 flex flex-col items-center text-center">
+            <div className="p-10 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
               <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-5 shadow-lg shadow-emerald-200/80">
                 <CheckCircle2 size={38} className="text-emerald-500" />
               </div>
               <h2 className="text-2xl font-bold text-slate-900 mb-2">Property submitted!</h2>
               <p className="text-sm text-slate-500 max-w-xs leading-relaxed mb-8">
-                Your listing is now under review. We'll verify the details and publish it shortly.
+                Your listing is now under review by our team. We'll verify the details and publish it shortly.
                 You'll get a notification once it's live.
               </p>
               <div className="flex gap-3 w-full max-w-xs">
@@ -1020,7 +1329,7 @@ export default function PostProperty() {
 
           {/* Footer nav (steps 2–4) */}
           {step >= 2 && step <= 4 && (
-            <div className="px-6 pb-6 pt-2 flex gap-3 border-t border-slate-100">
+            <div className="px-6 pb-6 pt-2 flex gap-3 border-t border-slate-100 mt-4">
               <button onClick={handleBack}
                 className="h-12 px-5 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium flex items-center gap-1.5 hover:bg-slate-50 transition-all">
                 <ChevronLeft size={16} /> Back
@@ -1032,7 +1341,7 @@ export default function PostProperty() {
               >
                 {isLoading
                   ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {step === 4 ? "Publishing…" : "Saving…"}</>
-                  : step === 4 ? <><CheckCircle2 size={16} /> Post property</> : <>Continue <ChevronRight size={16} /></>
+                  : step === 4 ? <><CheckCircle2 size={16} /> Submit for Review</> : <>Continue <ChevronRight size={16} /></>
                 }
               </button>
             </div>
