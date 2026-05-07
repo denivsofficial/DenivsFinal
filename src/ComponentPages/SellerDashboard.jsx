@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Building, Users, Phone, Trash2, Calendar, 
-  MapPin, AlertCircle, CheckCircle2, Clock, ChevronDown, MessageSquare, Loader2
+  MapPin, AlertCircle, CheckCircle2, Clock, ChevronDown, MessageSquare, Loader2, X
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom'; // <-- Added import
+import { useNavigate } from 'react-router-dom';
 import usePropertyStore from '../store/usePropertyStore';
 
 export default function SellerDashboard() {
-  const navigate = useNavigate(); // <-- Added navigation hook
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('listings');
   const [listingToDelete, setListingToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -116,15 +116,37 @@ export default function SellerDashboard() {
                   return (
                     <div 
                       key={property._id} 
-                      onClick={() => navigate(`/property/${property._id}`)} // <-- Added onClick to route
+                      onClick={() => navigate(`/property/${property._id}`)}
                       className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col group cursor-pointer hover:shadow-md hover:border-slate-300 transition-all"
                     >
                       <div className="relative h-48 overflow-hidden bg-slate-100">
                         <img src={imgUrl} alt={property.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-md text-xs font-bold shadow-sm">
+                        
+                        {/* Status Badge */}
+                        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
+                          {property.formStatus === 'submitted' && !property.isVerified && (
+                            <span className="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm flex items-center gap-1">
+                              <AlertCircle size={12} /> Under Review
+                            </span>
+                          )}
+                          {property.formStatus === 'published' && property.isVerified && (
+                            <span className="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm flex items-center gap-1">
+                              <CheckCircle2 size={12} /> Live
+                            </span>
+                          )}
+                          {property.formStatus === 'rejected' && (
+                            <span className="bg-rose-100 text-rose-700 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm flex items-center gap-1">
+                              <X size={12} /> Rejected
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Views Badge */}
+                        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-md text-xs font-bold shadow-sm z-10">
                           {property.viewCount || 0} Views
                         </div>
                       </div>
+                      
                       <div className="p-5 flex-1 flex flex-col">
                         <h3 className="font-bold text-lg text-slate-900 line-clamp-1">{property.title}</h3>
                         <div className="flex items-center text-slate-500 text-sm mt-1 mb-3">
