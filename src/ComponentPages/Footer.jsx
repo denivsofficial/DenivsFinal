@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Youtube, Twitter, Instagram, Mail, Phone } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react'; 
+import { FaFacebookF, FaYoutube, FaXTwitter, FaInstagram, FaLinkedinIn } from "react-icons/fa6";
 
 const companyLinks = [
   { label: 'About us', path: '/about' },
@@ -15,10 +16,11 @@ const companyLinks = [
 ];
 
 const socialLinks = [
-  { label: 'Facebook', href: '#', icon: Facebook, hover: 'hover:text-blue-500' },
-  { label: 'YouTube', href: '#', icon: Youtube, hover: 'hover:text-red-500' },
-  { label: 'Twitter', href: '#', icon: Twitter, hover: 'hover:text-sky-400' },
-  { label: 'Instagram', href: '#', icon: Instagram, hover: 'hover:text-pink-500' },
+  { label: 'Facebook', href: 'https://www.facebook.com/DENIVservices/?rdid=qDuifIdK4QCm0Bca', icon: FaFacebookF, hover: 'hover:text-blue-500' },
+  { label: 'YouTube', href: 'https://www.youtube.com/@denivs_official', icon: FaYoutube, hover: 'hover:text-red-500' },
+  { label: 'X', href: 'https://x.com/denivs_official?s=11', icon: FaXTwitter, hover: 'hover:text-slate-300' }, // Updated to X
+  { label: 'Instagram', href: 'https://www.instagram.com/denivs_official?igsh=MTIzOHJidXg3bW8yZA%3D%3D&utm_source=qr', icon: FaInstagram, hover: 'hover:text-pink-500' },
+  { label: 'LinkedIn', href: '#', icon: FaLinkedinIn, hover: 'hover:text-blue-600' },
 ];
 
 const Footer = () => {
@@ -76,9 +78,11 @@ const Footer = () => {
                 <a
                   key={label}
                   href={href}
-                  className={`p-2.5 rounded-full bg-slate-800/40 text-slate-400 ${hover} hover:bg-slate-800 transition-all transform hover:-translate-y-1`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`p-2.5 rounded-full bg-slate-800/40 text-slate-400 ${hover} hover:bg-slate-800 transition-all transform hover:-translate-y-1 flex items-center justify-center`}
                 >
-                  <Icon size={22} />
+                  <Icon size={20} />
                 </a>
               ))}
             </div>
