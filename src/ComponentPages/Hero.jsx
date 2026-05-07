@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HomepageBannerURL } from '../utils/constants'
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs"
-import { Building2, Briefcase, Home as HomeIcon, Users, MapPin } from 'lucide-react' 
+import { Building2, Briefcase, Home as HomeIcon, Users, MapPin, Map } from 'lucide-react' // <-- Added Map icon for Land
 
 const Hero = () => {
   const navigate = useNavigate();
@@ -131,11 +131,12 @@ const Hero = () => {
             {/* ── Category Filters ── */}
             <div className='flex items-start sm:justify-center gap-6 md:gap-10 overflow-x-auto no-scrollbar px-2 pb-2'>
               
-              <div onClick={() => handleCategorySelect('House,Land')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-17.5 shrink-0'>
-                <div className={`w-12 h-12 flex justify-center items-center rounded-xl transition shadow-sm ${selectedCategory === 'House,Land' ? 'bg-[#001A33] text-white' : 'bg-blue-50 text-blue-950 group-hover:bg-blue-100'}`}>
+              {/* Separated House into its own category */}
+              <div onClick={() => handleCategorySelect('House')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-17.5 shrink-0'>
+                <div className={`w-12 h-12 flex justify-center items-center rounded-xl transition shadow-sm ${selectedCategory === 'House' ? 'bg-[#001A33] text-white' : 'bg-blue-50 text-blue-950 group-hover:bg-blue-100'}`}>
                   <HomeIcon className='w-6 h-6' />
                 </div>
-                <span className={`text-[11px] md:text-xs font-bold transition ${selectedCategory === 'House,Land' ? 'text-[#001A33]' : 'text-slate-500 group-hover:text-blue-950'}`}>Residential</span>
+                <span className={`text-[11px] md:text-xs font-bold transition ${selectedCategory === 'House' ? 'text-[#001A33]' : 'text-slate-500 group-hover:text-blue-950'}`}>Residential</span>
               </div>
 
               <div onClick={() => handleCategorySelect('Apartment')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-17.5 shrink-0'>
@@ -143,6 +144,14 @@ const Hero = () => {
                   <Building2 className='w-6 h-6' />
                 </div>
                 <span className={`text-[11px] md:text-xs font-bold transition ${selectedCategory === 'Apartment' ? 'text-[#001A33]' : 'text-slate-500 group-hover:text-blue-950'}`}>Apartments</span>
+              </div>
+
+              {/* Added Land / Plots Category */}
+              <div onClick={() => handleCategorySelect('Land')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-17.5 shrink-0'>
+                <div className={`w-12 h-12 flex justify-center items-center rounded-xl transition shadow-sm ${selectedCategory === 'Land' ? 'bg-[#001A33] text-white' : 'bg-blue-50 text-blue-950 group-hover:bg-blue-100'}`}>
+                  <Map className='w-6 h-6' />
+                </div>
+                <span className={`text-[11px] md:text-xs font-bold transition ${selectedCategory === 'Land' ? 'text-[#001A33]' : 'text-slate-500 group-hover:text-blue-950'}`}>Plots/Land</span>
               </div>
 
               <div onClick={() => handleCategorySelect('Office,Shop')} className='flex flex-col items-center gap-2 group cursor-pointer min-w-17.5 shrink-0'>
