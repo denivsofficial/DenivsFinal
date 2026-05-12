@@ -77,13 +77,14 @@ function SectionBlock({ title, children }) {
   );
 }
 
-// ─── Swipe-only Image Gallery
+// ─── Swipe-only Image Gallery ─────────────────────────────────────────────────
 function Gallery({ images, videoUrl }) {
   const [active, setActive]         = useState(0);
   const [lightbox, setLightbox]     = useState(false);
   const [dragging, setDragging]     = useState(false);
   const [offset, setOffset]         = useState(0);
   const [inlineVideo, setInlineVideo] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   const touchStartX  = useRef(null);
   const dragStartX   = useRef(null);
@@ -103,8 +104,17 @@ function Gallery({ images, videoUrl }) {
   }
   const count = mediaItems.length;
 
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setContainerWidth(entry.contentRect.width);
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   const goTo = useCallback((idx) => {
-    setInlineVideo(false); // Pause/Hide video when swiping away
+    setInlineVideo(false); 
     setActive(Math.max(0, Math.min(idx, count - 1)));
     setOffset(0);
   }, [count]);
@@ -123,7 +133,6 @@ function Gallery({ images, videoUrl }) {
     const dx = e.changedTouches[0].clientX - (touchStartX.current ?? 0);
     if (Math.abs(dx) > 50) dx < 0 ? next() : prev();
     else if (Math.abs(dx) < 5) {
-      // THE FIX: If they tap the video, play it inline. Otherwise open Lightbox.
       if (mediaItems[active].type === 'video') setInlineVideo(true);
       else setLightbox(true);
     }
@@ -143,7 +152,6 @@ function Gallery({ images, videoUrl }) {
     const dx = e.clientX - (dragStartX.current ?? e.clientX);
     if (Math.abs(dx) > 50) dx < 0 ? next() : prev();
     else if (Math.abs(dx) < 5) {
-      // THE FIX: If they click the video, play it inline. Otherwise open Lightbox.
       if (mediaItems[active].type === 'video') setInlineVideo(true);
       else setLightbox(true);
     }
@@ -269,15 +277,15 @@ function Gallery({ images, videoUrl }) {
         )}
       </div>
 
-      {/* Lightbox / Fullscreen View (Images Only Now) */}
+      {/* Lightbox / Fullscreen View */}
       {lightbox && (
         <div
-          className="fixed inset-0 z-300 bg-black/95 flex items-center justify-center select-none"
+          className="fixed inset-0 z-[300] bg-black/93 flex items-center justify-center select-none"
           onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onClick={() => setLightbox(false)}
         >
           <div className="w-full h-full overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
             <button
-              className="absolute top-6 right-6 w-12 h-12 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-350 shadow-lg"
+              className="absolute top-6 right-6 w-12 h-12 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-[350] shadow-lg"
               onClick={() => setLightbox(false)}
             >
               <X size={24} strokeWidth={2.5} />
@@ -287,12 +295,11 @@ function Gallery({ images, videoUrl }) {
               style={{ width: `${count * 100}vw`, transform: `translateX(calc(${-active * 100}vw + ${offset}px))`, transition: touchStartX.current !== null ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}
             >
               {mediaItems.map((item, i) => (
-                <div key={i} className="w-screen h-full flex items-center justify-center shrink-0 p-4 md:p-12">
+                <div key={i} className="w-[100vw] h-full flex items-center justify-center flex-shrink-0 p-4 md:p-12">
                   <div className="w-full h-full md:aspect-video relative rounded-2xl overflow-hidden shadow-2xl bg-black/20">
                     {item.type === 'image' ? (
                       <img src={item.url} alt="" className="absolute inset-0 w-full h-full object-contain" draggable={false} />
                     ) : (
-                      // If they swipe to the video inside the lightbox, show the player here too.
                       item.ytEmbedUrl ? (
                         <iframe 
                           src={item.ytEmbedUrl} 
@@ -331,8 +338,8 @@ function Gallery({ images, videoUrl }) {
 }
 
 // ─── Contact modal ────────────────────────────────────────────────────────────
-function ContactModal({ isOpen, onClose, propertyId, sellerName }) {
-  const [form, setForm]     = useState({ name: '', phone: '', message: '', wantVisit: false, agreeTerms: false });
+function ContactModal({ isOpen, onClose, propertyId, sellerName, onSuccessCallback }) {
+  const [form, setForm]       = useState({ name: '', phone: '', message: '', wantVisit: false, agreeTerms: false });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError]     = useState(null);
@@ -356,7 +363,8 @@ function ContactModal({ isOpen, onClose, propertyId, sellerName }) {
           onClose();
           setSuccess(false);
           setForm({ name: '', phone: '', message: '', wantVisit: false, agreeTerms: false });
-        }, 2500);
+          if (onSuccessCallback) onSuccessCallback(); 
+        }, 1500);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to send. Please try again.');
@@ -368,8 +376,8 @@ function ContactModal({ isOpen, onClose, propertyId, sellerName }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl relative overflow-hidden">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl relative overflow-hidden animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div>
             <h3 className="text-base font-bold text-slate-900">Contact seller</h3>
@@ -382,12 +390,12 @@ function ContactModal({ isOpen, onClose, propertyId, sellerName }) {
 
         <div className="p-5">
           {success ? (
-            <div className="py-8 flex flex-col items-center text-center gap-3">
+            <div className="py-8 flex flex-col items-center text-center gap-3 animate-in zoom-in-95">
               <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center">
                 <CheckCircle size={28} className="text-emerald-500" strokeWidth={2} />
               </div>
-              <p className="text-base font-bold text-slate-900">Request sent!</p>
-              <p className="text-sm text-slate-500">The seller will contact you shortly.</p>
+              <p className="text-base font-bold text-slate-900">Request Sent Successfully!</p>
+              <p className="text-sm text-slate-500">Unlocking requested details...</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3.5">
@@ -427,7 +435,7 @@ function ContactModal({ isOpen, onClose, propertyId, sellerName }) {
               </div>
 
               <button type="submit" disabled={loading} className="w-full h-12 bg-[#001A33] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#13304c] transition-all disabled:opacity-60 mt-2">
-                {loading ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : 'Send inquiry'}
+                {loading ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : 'Unlock Details'}
               </button>
             </form>
           )}
@@ -476,7 +484,11 @@ const SingleUnitDisplay = ({ property, adminMode, onAdminClose, adminActions: Ad
   const likedPropertyIds = usePropertyStore((s) => s.likedPropertyIds);
   const toggleFavorite   = usePropertyStore((s) => s.toggleFavorite);
 
+  // --- Lead Gate State ---
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalCallback, setModalCallback] = useState(null); 
+  const [phoneRevealed, setPhoneRevealed] = useState(false);
+
   const isLiked = likedPropertyIds.includes(property._id);
 
   const handleShare = async () => {
@@ -492,6 +504,12 @@ const SingleUnitDisplay = ({ property, adminMode, onAdminClose, adminActions: Ad
       await navigator.clipboard.writeText(window.location.href);
       alert('Link copied!');
     }
+  };
+
+  const triggerRevealPhone = () => {
+    if (phoneRevealed) return;
+    setModalCallback(() => () => setPhoneRevealed(true));
+    setModalOpen(true);
   };
 
   const {
@@ -596,7 +614,6 @@ const SingleUnitDisplay = ({ property, adminMode, onAdminClose, adminActions: Ad
         <div className="flex flex-col lg:grid lg:grid-cols-[1fr_340px] gap-5">
           {/* ── LEFT COLUMN ── */}
           <div className="flex flex-col gap-5 min-w-0">
-            {/* The Video URL is now passed straight into the Gallery component! */}
             <Gallery images={images} videoUrl={videoUrl} />
 
             <div className="md:hidden bg-white rounded-2xl border border-slate-200 p-5">
@@ -751,15 +768,27 @@ const SingleUnitDisplay = ({ property, adminMode, onAdminClose, adminActions: Ad
                 <AdminActions property={property} />
               ) : (
                 <div className="p-4 flex flex-col gap-2.5">
-                  <button onClick={() => setModalOpen(true)} className="w-full h-12 bg-[#001A33] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#13304c] transition-all active:scale-[0.98]">
-                    <Phone size={16} strokeWidth={2} /> Contact seller
+                  <h3 className="text-sm font-bold text-slate-800 mb-2 text-center">Interested in this property?</h3>
+                  <button onClick={() => { setModalCallback(null); setModalOpen(true); }} className="w-full h-12 bg-[#001A33] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-lg shadow-[#001A33]/20 active:scale-[0.98]">
+                    Request Call Back
                   </button>
+
                   {sellerPhone && (
-                    <a href={`tel:+91${sellerPhone}`} className="w-full h-11 border-2 border-[#001A33] text-[#001A33] rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#001A33]/5 transition-all">
-                      <Phone size={15} strokeWidth={2} /> Call directly
-                    </a>
+                    <div className="mt-3 text-center">
+                      <p className="text-[11px] text-slate-500 mb-2">Or connect directly</p>
+                      {phoneRevealed ? (
+                         <a href={`tel:+91${sellerPhone}`} className="w-full h-11 bg-emerald-50 border-2 border-emerald-200 text-emerald-700 rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors">
+                           <Phone size={16} strokeWidth={2.5}/> {sellerPhone}
+                         </a>
+                      ) : (
+                         <button onClick={triggerRevealPhone} className="w-full h-11 border-2 border-[#001A33] text-[#001A33] rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
+                           <Phone size={15} strokeWidth={2}/> Show Contact Number
+                         </button>
+                      )}
+                    </div>
                   )}
-                  <div className="flex gap-2">
+
+                  <div className="flex gap-2 mt-2">
                     <button onClick={() => toggleFavorite(property._id)} className={`flex-1 h-10 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.97] ${isLiked ? 'border-red-200 bg-red-50 text-red-500' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
                       <Heart size={15} strokeWidth={2} className={isLiked ? 'fill-red-500' : ''} /> {isLiked ? 'Saved' : 'Save'}
                     </button>
@@ -808,7 +837,7 @@ const SingleUnitDisplay = ({ property, adminMode, onAdminClose, adminActions: Ad
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-3 flex gap-3 z-40 lg:hidden">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-3 flex gap-2 z-40 lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         {adminMode && AdminActions ? (
           <AdminActions property={property} mobile />
         ) : (
@@ -816,19 +845,34 @@ const SingleUnitDisplay = ({ property, adminMode, onAdminClose, adminActions: Ad
             <button onClick={() => toggleFavorite(property._id)} className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center transition shrink-0 active:scale-[0.95] ${isLiked ? 'border-red-200 bg-red-50 text-red-500' : 'border-slate-200 text-slate-500'}`}>
               <Heart size={20} strokeWidth={2} className={isLiked ? 'fill-red-500' : ''} />
             </button>
-            {sellerPhone && (
-              <a href={`tel:+91${sellerPhone}`} className="w-12 h-12 rounded-xl border-2 border-slate-200 flex items-center justify-center text-[#001A33] shrink-0 transition hover:bg-slate-50 active:scale-[0.95]">
-                <Phone size={18} strokeWidth={2} />
-              </a>
-            )}
-            <button onClick={() => setModalOpen(true)} className="flex-1 h-12 bg-[#001A33] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#13304c] transition-all active:scale-[0.98]">
-              <Phone size={18} strokeWidth={2} /> Contact seller
+            <button 
+              onClick={() => { setModalCallback(null); setModalOpen(true); }}
+              className="flex-1 h-12 bg-[#001A33] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform"
+            >
+              Contact Seller
             </button>
+            {sellerPhone && (
+              phoneRevealed ? (
+                <a href={`tel:+91${sellerPhone}`} className="w-12 h-12 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+                  <Phone size={20} strokeWidth={2.5} />
+                </a>
+              ) : (
+                <button onClick={triggerRevealPhone} className="w-12 h-12 bg-white text-[#001A33] border-2 border-[#001A33] rounded-xl flex items-center justify-center shrink-0 shadow-sm active:scale-[0.95] transition-transform">
+                  <Phone size={20} strokeWidth={2.5}/>
+                </button>
+              )
+            )}
           </>
         )}
       </div>
 
-      <ContactModal isOpen={modalOpen} onClose={() => setModalOpen(false)} propertyId={property._id} sellerName={sellerName} />
+      <ContactModal 
+        isOpen={modalOpen} 
+        onClose={() => setModalOpen(false)} 
+        propertyId={property._id} 
+        sellerName={sellerName} 
+        onSuccessCallback={modalCallback} 
+      />
     </div>
   );
 };
