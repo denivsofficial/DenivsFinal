@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   MapPin, Bed, Bath, Maximize2, ArrowLeft, Phone, CheckCircle,
   Heart, Share2, X, Loader2, Shield, Tag, Layers,
-  Sofa, BadgeCheck, FlipHorizontal, DoorOpen, ChevronDown, ChevronUp
+  Sofa, BadgeCheck, FlipHorizontal, DoorOpen, ChevronDown, ChevronUp, PlayCircle
 } from 'lucide-react';
 import { apiClient } from '../store/useAuthStore';
 import usePropertyStore from '../store/usePropertyStore';
@@ -20,6 +20,13 @@ function formatINR(val) {
 function fullAddress(loc) {
   if (!loc) return '';
   return [loc.address, loc.city, loc.state, loc.pincode].filter(Boolean).join(', ');
+}
+
+function getYouTubeEmbedUrl(url) {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
 }
 
 // ─── Small reusable pieces ────────────────────────────────────────────────────
@@ -70,32 +77,34 @@ function SectionBlock({ title, children }) {
   );
 }
 
-// ─── Swipe-only Image Gallery ─────────────────────────────────────────────────
-function Gallery({ images }) {
+// ─── Swipe-only Image Gallery
+function Gallery({ images, videoUrl }) {
   const [active, setActive]         = useState(0);
   const [lightbox, setLightbox]     = useState(false);
   const [dragging, setDragging]     = useState(false);
   const [offset, setOffset]         = useState(0);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const [inlineVideo, setInlineVideo] = useState(false);
 
   const touchStartX  = useRef(null);
   const dragStartX   = useRef(null);
   const containerRef = useRef(null);
 
+  // Parse Media Items
   const fallback = 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=900';
-  const imgs = images?.length ? images : [fallback];
-  const count = imgs.length;
+  const rawImages = images?.length ? images : [fallback];
+  
+  const ytEmbedUrl = getYouTubeEmbedUrl(videoUrl);
+  const isDirectVideo = videoUrl && (videoUrl.match(/\.(mp4|webm|ogg)$/i) || videoUrl.includes('res.cloudinary.com/video'));
+  const hasVideo = ytEmbedUrl || isDirectVideo;
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const ro = new ResizeObserver(([entry]) => {
-      setContainerWidth(entry.contentRect.width);
-    });
-    ro.observe(containerRef.current);
-    return () => ro.disconnect();
-  }, []);
+  const mediaItems = rawImages.map(url => ({ type: 'image', url }));
+  if (hasVideo) {
+    mediaItems.push({ type: 'video', url: videoUrl, ytEmbedUrl, isDirectVideo });
+  }
+  const count = mediaItems.length;
 
   const goTo = useCallback((idx) => {
+    setInlineVideo(false); // Pause/Hide video when swiping away
     setActive(Math.max(0, Math.min(idx, count - 1)));
     setOffset(0);
   }, [count]);
@@ -103,63 +112,46 @@ function Gallery({ images }) {
   const prev = useCallback(() => goTo(active - 1), [active, goTo]);
   const next = useCallback(() => goTo(active + 1), [active, goTo]);
 
-  const onTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-    setOffset(0);
-  };
+  const onTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; setOffset(0); };
   const onTouchMove = (e) => {
     if (touchStartX.current === null) return;
     const dx = e.touches[0].clientX - touchStartX.current;
-    if ((active === 0 && dx > 0) || (active === count - 1 && dx < 0)) {
-      setOffset(dx * 0.25);
-    } else {
-      setOffset(dx);
-    }
+    if ((active === 0 && dx > 0) || (active === count - 1 && dx < 0)) setOffset(dx * 0.25);
+    else setOffset(dx);
   };
   const onTouchEnd = (e) => {
     const dx = e.changedTouches[0].clientX - (touchStartX.current ?? 0);
-    if (Math.abs(dx) > 50) {
-      dx < 0 ? next() : prev();
-    } else {
-      setOffset(0);
+    if (Math.abs(dx) > 50) dx < 0 ? next() : prev();
+    else if (Math.abs(dx) < 5) {
+      // THE FIX: If they tap the video, play it inline. Otherwise open Lightbox.
+      if (mediaItems[active].type === 'video') setInlineVideo(true);
+      else setLightbox(true);
     }
+    else setOffset(0);
     touchStartX.current = null;
   };
 
-  const onMouseDown = (e) => {
-    dragStartX.current = e.clientX;
-    setDragging(true);
-    setOffset(0);
-  };
+  const onMouseDown = (e) => { dragStartX.current = e.clientX; setDragging(true); setOffset(0); };
   const onMouseMove = (e) => {
     if (!dragging || dragStartX.current === null) return;
     const dx = e.clientX - dragStartX.current;
-    if ((active === 0 && dx > 0) || (active === count - 1 && dx < 0)) {
-      setOffset(dx * 0.25);
-    } else {
-      setOffset(dx);
-    }
+    if ((active === 0 && dx > 0) || (active === count - 1 && dx < 0)) setOffset(dx * 0.25);
+    else setOffset(dx);
   };
   const onMouseUp = (e) => {
     if (!dragging) return;
     const dx = e.clientX - (dragStartX.current ?? e.clientX);
-    if (Math.abs(dx) > 50) {
-      dx < 0 ? next() : prev();
-    } else if (Math.abs(dx) < 5) {
-      setLightbox(true);
-    } else {
-      setOffset(0);
+    if (Math.abs(dx) > 50) dx < 0 ? next() : prev();
+    else if (Math.abs(dx) < 5) {
+      // THE FIX: If they click the video, play it inline. Otherwise open Lightbox.
+      if (mediaItems[active].type === 'video') setInlineVideo(true);
+      else setLightbox(true);
     }
+    else setOffset(0);
     setDragging(false);
     dragStartX.current = null;
   };
-  const onMouseLeave = () => {
-    if (dragging) {
-      setDragging(false);
-      setOffset(0);
-      dragStartX.current = null;
-    }
-  };
+  const onMouseLeave = () => { if (dragging) { setDragging(false); setOffset(0); dragStartX.current = null; } };
 
   useEffect(() => {
     if (!lightbox) return;
@@ -181,6 +173,7 @@ function Gallery({ images }) {
   return (
     <>
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        {/* Main Slider */}
         <div
           ref={containerRef}
           className="relative aspect-4/3 md:aspect-video bg-slate-900 overflow-hidden select-none"
@@ -192,51 +185,99 @@ function Gallery({ images }) {
             className="absolute top-0 left-0 h-full flex"
             style={{ transform: `translateX(${translateValue})`, transition, width: `${count * 100}%` }}
           >
-            {imgs.map((img, i) => (
+            {mediaItems.map((item, i) => (
               <div key={i} className="relative h-full flex-none" style={{ width: `${slidePercent}%` }}>
-                <img src={img} alt={`Property ${i + 1}`} className="absolute inset-0 w-full h-full object-contain" draggable={false} />
+                {item.type === 'image' ? (
+                  <img src={item.url} alt={`Property ${i + 1}`} className="absolute inset-0 w-full h-full object-contain" draggable={false} />
+                ) : (
+                  inlineVideo && active === i ? (
+                    <div 
+                      className="absolute inset-0 w-full h-full bg-black z-10"
+                      onMouseDown={e => e.stopPropagation()}
+                      onTouchStart={e => e.stopPropagation()}
+                    >
+                      {item.ytEmbedUrl ? (
+                        <iframe 
+                          src={`${item.ytEmbedUrl}${item.ytEmbedUrl.includes('?') ? '&' : '?'}autoplay=1`} 
+                          title="Property Video Tour" 
+                          frameBorder="0" 
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                          allowFullScreen 
+                          className="absolute inset-0 w-full h-full"
+                        ></iframe>
+                      ) : (
+                        <video 
+                          src={item.url} 
+                          controls 
+                          autoPlay
+                          playsInline
+                          className="absolute inset-0 w-full h-full object-contain"
+                        ></video>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-black cursor-pointer">
+                      <img src={rawImages[0]} className="absolute inset-0 w-full h-full object-cover opacity-40 blur-sm pointer-events-none" draggable={false} />
+                      <div className="z-10 flex flex-col items-center pointer-events-none">
+                        <PlayCircle size={64} className="text-white opacity-90 mb-2 drop-shadow-lg" strokeWidth={1.5} />
+                        <span className="text-white font-bold text-sm drop-shadow-md">Play Video Tour</span>
+                      </div>
+                    </div>
+                  )
+                )}
               </div>
             ))}
           </div>
 
           {count > 1 && (
-            <div className="absolute top-3 right-3 bg-black/55 text-white text-[11px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none">
+            <div className="absolute top-3 right-3 bg-black/55 text-white text-[11px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none z-20">
               {active + 1} / {count}
             </div>
           )}
 
           {count > 1 && count <= 12 && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none">
-              {imgs.map((_, i) => (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none z-20">
+              {mediaItems.map((_, i) => (
                 <span key={i} className={`rounded-full transition-all duration-250 ${i === active ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'}`} />
               ))}
             </div>
           )}
         </div>
 
+        {/* Thumbnail Strip */}
         {count > 1 && (
           <div className="hidden md:flex gap-2 p-3 overflow-x-auto no-scrollbar border-t border-slate-100">
-            {imgs.map((img, i) => (
+            {mediaItems.map((item, i) => (
               <button
                 key={i}
                 onMouseDown={(e) => { e.stopPropagation(); goTo(i); }}
-                className={`shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${active === i ? 'border-[#001A33]' : 'border-transparent hover:border-slate-300'}`}
+                className={`relative shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${active === i ? 'border-[#001A33]' : 'border-transparent hover:border-slate-300'}`}
               >
-                <img src={img} alt="" className="w-full h-full object-cover" draggable={false} />
+                {item.type === 'image' ? (
+                  <img src={item.url} alt="" className="w-full h-full object-cover" draggable={false} />
+                ) : (
+                  <>
+                    <img src={rawImages[0]} alt="" className="w-full h-full object-cover opacity-60" draggable={false} />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <PlayCircle size={20} className="text-white drop-shadow-md" />
+                    </div>
+                  </>
+                )}
               </button>
             ))}
           </div>
         )}
       </div>
 
+      {/* Lightbox / Fullscreen View (Images Only Now) */}
       {lightbox && (
         <div
-          className="fixed inset-0 z-[300] bg-black/93 flex items-center justify-center select-none"
+          className="fixed inset-0 z-300 bg-black/95 flex items-center justify-center select-none"
           onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onClick={() => setLightbox(false)}
         >
           <div className="w-full h-full overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
             <button
-              className="absolute top-6 right-6 w-12 h-12 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-[350] shadow-lg"
+              className="absolute top-6 right-6 w-12 h-12 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-350 shadow-lg"
               onClick={() => setLightbox(false)}
             >
               <X size={24} strokeWidth={2.5} />
@@ -245,10 +286,31 @@ function Gallery({ images }) {
               className="flex h-full absolute top-0 left-0"
               style={{ width: `${count * 100}vw`, transform: `translateX(calc(${-active * 100}vw + ${offset}px))`, transition: touchStartX.current !== null ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}
             >
-              {imgs.map((img, i) => (
-                <div key={i} className="w-[100vw] h-full flex items-center justify-center flex-shrink-0 p-4 md:p-12">
+              {mediaItems.map((item, i) => (
+                <div key={i} className="w-screen h-full flex items-center justify-center shrink-0 p-4 md:p-12">
                   <div className="w-full h-full md:aspect-video relative rounded-2xl overflow-hidden shadow-2xl bg-black/20">
-                    <img src={img} alt="" className="absolute inset-0 w-full h-full object-contain" draggable={false} />
+                    {item.type === 'image' ? (
+                      <img src={item.url} alt="" className="absolute inset-0 w-full h-full object-contain" draggable={false} />
+                    ) : (
+                      // If they swipe to the video inside the lightbox, show the player here too.
+                      item.ytEmbedUrl ? (
+                        <iframe 
+                          src={item.ytEmbedUrl} 
+                          title="Property Video Tour" 
+                          frameBorder="0" 
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                          allowFullScreen 
+                          className="absolute inset-0 w-full h-full"
+                        ></iframe>
+                      ) : (
+                        <video 
+                          src={item.url} 
+                          controls 
+                          playsInline
+                          className="absolute inset-0 w-full h-full object-contain"
+                        ></video>
+                      )
+                    )}
                   </div>
                 </div>
               ))}
@@ -257,7 +319,7 @@ function Gallery({ images }) {
 
           {count > 1 && (
             <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2">
-              {imgs.map((_, i) => (
+              {mediaItems.map((_, i) => (
                 <span key={i} className={`rounded-full transition-all duration-200 ${i === active ? 'w-5 h-1.5 bg-white' : 'w-2 h-2 bg-white/40'}`} />
               ))}
             </div>
@@ -434,7 +496,7 @@ const SingleUnitDisplay = ({ property, adminMode, onAdminClose, adminActions: Ad
 
   const {
     title, propertyType, transactionType, description,
-    location, images, price, amenities = [],
+    location, images, videoUrl, price, amenities = [],
     residentialDetails: rd, plotDetails: pd, commercialDetails: cd,
     listedBy, isVerified, isResaleProperty,
   } = property;
@@ -534,7 +596,8 @@ const SingleUnitDisplay = ({ property, adminMode, onAdminClose, adminActions: Ad
         <div className="flex flex-col lg:grid lg:grid-cols-[1fr_340px] gap-5">
           {/* ── LEFT COLUMN ── */}
           <div className="flex flex-col gap-5 min-w-0">
-            <Gallery images={images} />
+            {/* The Video URL is now passed straight into the Gallery component! */}
+            <Gallery images={images} videoUrl={videoUrl} />
 
             <div className="md:hidden bg-white rounded-2xl border border-slate-200 p-5">
               <div className="flex flex-wrap gap-1.5 mb-3">
